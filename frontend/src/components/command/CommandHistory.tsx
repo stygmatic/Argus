@@ -1,5 +1,7 @@
 import { useCommandStore } from "../../stores/useCommandStore";
 
+const EMPTY_IDS: string[] = [];
+
 const STATUS_PILLS: Record<string, { bg: string; text: string; label: string }> = {
   pending: { bg: "bg-amber-500/15 border-amber-500/30", text: "text-amber-400", label: "Pending" },
   sent: { bg: "bg-sky-500/15 border-sky-500/30", text: "text-sky-400", label: "Sent" },
@@ -14,7 +16,7 @@ interface CommandHistoryProps {
 
 export function CommandHistory({ robotId }: CommandHistoryProps) {
   const commands = useCommandStore((s) => s.commands);
-  const robotCommandIds = useCommandStore((s) => s.robotCommands[robotId] || []);
+  const robotCommandIds = useCommandStore((s) => s.robotCommands[robotId] ?? EMPTY_IDS);
 
   const recentIds = robotCommandIds.slice(-5).reverse();
   const recentCommands = recentIds
