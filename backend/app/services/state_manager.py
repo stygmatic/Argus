@@ -5,6 +5,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
+AUTONOMY_TIERS = ("manual", "assisted", "supervised", "autonomous")
+
+
 @dataclass
 class RobotState:
     id: str
@@ -20,6 +23,9 @@ class RobotState:
     signal_strength: float = 100.0
     last_seen: float = 0.0
     metadata: dict[str, Any] = field(default_factory=dict)
+    autonomy_tier: str = "assisted"
+    last_command_source: str = ""
+    last_command_at: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -40,6 +46,9 @@ class RobotState:
             },
             "lastSeen": self.last_seen,
             "metadata": self.metadata,
+            "autonomyTier": self.autonomy_tier,
+            "lastCommandSource": self.last_command_source,
+            "lastCommandAt": self.last_command_at,
         }
 
 

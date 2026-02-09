@@ -66,6 +66,20 @@ CREATE TABLE commands (
 CREATE INDEX idx_commands_robot ON commands(robot_id, created_at DESC);
 CREATE INDEX idx_commands_status ON commands(status);
 
+-- Autonomy tier on robots
+ALTER TABLE robots ADD COLUMN IF NOT EXISTS autonomy_tier TEXT NOT NULL DEFAULT 'assisted';
+
+-- Autonomy change log
+CREATE TABLE autonomy_log (
+    id          TEXT PRIMARY KEY,
+    robot_id    TEXT NOT NULL,
+    old_tier    TEXT NOT NULL,
+    new_tier    TEXT NOT NULL,
+    changed_by  TEXT NOT NULL DEFAULT 'operator',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_autonomy_log_robot ON autonomy_log(robot_id, created_at DESC);
+
 -- Missions
 CREATE TABLE missions (
     id              TEXT PRIMARY KEY,

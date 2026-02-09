@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { useAIStore } from "../../stores/useAIStore";
 import { useUIStore } from "../../stores/useUIStore";
+import { useRobotStore } from "../../stores/useRobotStore";
+import { useAutonomyStore } from "../../stores/useAutonomyStore";
 import type { Suggestion } from "../../types/ai";
+import type { AutonomyTier } from "../../types/robot";
+import { CountdownTimer } from "../autonomy/CountdownTimer";
 import clsx from "clsx";
 
 const SEVERITY_STYLES: Record<string, { border: string; icon: string }> = {
@@ -14,11 +18,66 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   const [expanded, setExpanded] = useState(false);
   const approve = useAIStore((s) => s.approveSuggestion);
   const reject = useAIStore((s) => s.rejectSuggestion);
+  const robot = useRobotStore((s) => s.robots[suggestion.robotId]);
+  const countdown = useAutonomyStore((s) => s.countdowns[suggestion.id]);
   const style = (SEVERITY_STYLES[suggestion.severity] ?? SEVERITY_STYLES.info)!;
+
+  const tier = (robot?.autonomyTier ?? "assisted") as AutonomyTier;
 
   const timeLeft = suggestion.expiresAt > 0
     ? Math.max(0, Math.round((suggestion.expiresAt - Date.now() / 1000)))
     : null;
+
+  // Determine what action buttons to show based on tier
+  const renderActions = () => {
+    if (suggestion.status !== "pending") {
+      return (
+        <span className={clsx(
+          "text-[11px] capitalize",
+          suggestion.status === "approved" ? "text-emerald-400" : "text-zinc-500"
+        )}>
+          {suggestion.status}
+        </span>
+      );
+    }
+
+    if (tier === "autonomous") {
+      return (
+        <span className="text-[11px] font-medium px-2 py-0.5 rounded-full border bg-emerald-500/15 border-emerald-500/30 text-emerald-400">
+          Auto-executed
+        </span>
+      );
+    }
+
+    if (tier === "supervised" && countdown) {
+      return (
+        <CountdownTimer
+          suggestionId={suggestion.id}
+          autoExecuteAt={countdown.autoExecuteAt}
+        />
+      );
+    }
+
+    // manual or assisted
+    return (
+      <>
+        <button
+          onClick={() => reject(suggestion.id)}
+          className="text-[11px] px-2.5 py-1 rounded-lg bg-zinc-700/60 text-zinc-400 hover:bg-zinc-600/60 transition-colors"
+        >
+          Dismiss
+        </button>
+        {tier !== "manual" && suggestion.proposedAction && (
+          <button
+            onClick={() => approve(suggestion.id)}
+            className="text-[11px] px-2.5 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-500 transition-colors"
+          >
+            Approve
+          </button>
+        )}
+      </>
+    );
+  };
 
   return (
     <div className={clsx(
@@ -57,35 +116,10 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
           {expanded ? "Less" : "More"}
         </button>
         <div className="flex-1" />
-        {timeLeft !== null && (
+        {timeLeft !== null && !countdown && (
           <span className="text-[11px] text-zinc-600">{timeLeft}s</span>
         )}
-        {suggestion.status === "pending" && (
-          <>
-            <button
-              onClick={() => reject(suggestion.id)}
-              className="text-[11px] px-2.5 py-1 rounded-lg bg-zinc-700/60 text-zinc-400 hover:bg-zinc-600/60 transition-colors"
-            >
-              Dismiss
-            </button>
-            {suggestion.proposedAction && (
-              <button
-                onClick={() => approve(suggestion.id)}
-                className="text-[11px] px-2.5 py-1 rounded-lg bg-sky-600 text-white hover:bg-sky-500 transition-colors"
-              >
-                Approve
-              </button>
-            )}
-          </>
-        )}
-        {suggestion.status !== "pending" && (
-          <span className={clsx(
-            "text-[11px] capitalize",
-            suggestion.status === "approved" ? "text-emerald-400" : "text-zinc-500"
-          )}>
-            {suggestion.status}
-          </span>
-        )}
+        {renderActions()}
       </div>
     </div>
   );

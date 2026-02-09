@@ -4,10 +4,12 @@ import { useConnectionStore } from "../stores/useConnectionStore";
 import { useCommandStore } from "../stores/useCommandStore";
 import { useMissionStore } from "../stores/useMissionStore";
 import { useAIStore } from "../stores/useAIStore";
+import { useAutonomyStore } from "../stores/useAutonomyStore";
 import type { WSMessage, StateSyncPayload, RobotUpdatedPayload } from "../types/ws";
 import type { Command } from "../types/command";
 import type { Mission } from "../types/mission";
 import type { Suggestion } from "../types/ai";
+import type { AutonomyChangeEntry, CountdownSuggestion } from "../types/autonomy";
 
 const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
 
@@ -76,6 +78,23 @@ export function useWebSocket() {
           } else {
             aiStore.addSuggestion(suggestion);
           }
+          break;
+        }
+        case "autonomy.changed": {
+          const entry = msg.payload as AutonomyChangeEntry;
+          const autoStore = useAutonomyStore.getState();
+          autoStore.addChangeLogEntry(entry);
+          // Update robot's tier in robot store
+          if (entry.robotId === "__fleet__") {
+            autoStore.setFleetDefaultTier(entry.newTier);
+          } else {
+            updateRobot(entry.robotId, { autonomyTier: entry.newTier } as never);
+          }
+          break;
+        }
+        case "autonomy.countdown": {
+          const countdown = msg.payload as CountdownSuggestion;
+          useAutonomyStore.getState().addCountdown(countdown);
           break;
         }
       }

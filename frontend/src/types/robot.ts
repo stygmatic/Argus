@@ -1,5 +1,6 @@
 export type RobotType = "drone" | "ground" | "underwater";
 export type RobotStatus = "idle" | "active" | "returning" | "error" | "offline";
+export type AutonomyTier = "manual" | "assisted" | "supervised" | "autonomous";
 
 export interface RobotPosition {
   latitude: number;
@@ -23,4 +24,7 @@ export interface RobotState {
   health: RobotHealth;
   lastSeen: number;
   metadata: Record<string, unknown>;
+  autonomyTier: AutonomyTier;
+  lastCommandSource: string;
+  lastCommandAt: number;
 }

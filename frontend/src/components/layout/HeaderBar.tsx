@@ -2,6 +2,8 @@ import { useConnectionStore } from "../../stores/useConnectionStore";
 import { useRobotStore } from "../../stores/useRobotStore";
 import { useAIStore } from "../../stores/useAIStore";
 import { useUIStore } from "../../stores/useUIStore";
+import { useAutonomyStore } from "../../stores/useAutonomyStore";
+import { AutonomyBadge } from "../autonomy/AutonomyBadge";
 
 export function HeaderBar() {
   const connected = useConnectionStore((s) => s.connected);
@@ -12,6 +14,7 @@ export function HeaderBar() {
   );
   const alertsPanelOpen = useUIStore((s) => s.alertsPanelOpen);
   const toggleAlertsPanel = useUIStore((s) => s.toggleAlertsPanel);
+  const fleetDefaultTier = useAutonomyStore((s) => s.fleetDefaultTier);
 
   const robotList = Object.values(robots);
   const activeCount = robotList.filter((r) => r.status === "active").length;
@@ -64,6 +67,14 @@ export function HeaderBar() {
             </span>
           )}
           <span className="text-zinc-600">{totalCount} total</span>
+        </div>
+
+        <div className="w-px h-5 bg-zinc-700/60" />
+
+        {/* Fleet default tier */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-zinc-500">Fleet:</span>
+          <AutonomyBadge tier={fleetDefaultTier} size="md" />
         </div>
 
         <div className="w-px h-5 bg-zinc-700/60" />

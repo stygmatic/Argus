@@ -17,8 +17,9 @@ from app.db.repositories.command_repo import command_repo
 from app.db.repositories.telemetry_repo import telemetry_repo
 from app.mqtt.client import mqtt_client
 from app.mqtt.handlers import handle_command_ack, handle_status, handle_telemetry
+from app.services.autonomy_service import autonomy_service
 from app.services.command_service import command_service
-from app.services.state_manager import state_manager
+from app.services.state_manager import AUTONOMY_TIERS, state_manager
 from app.ws.manager import ws_manager
 
 logging.basicConfig(
@@ -84,6 +85,12 @@ async def handle_ws_message(websocket: WebSocket, data: dict[str, Any]) -> None:
             },
         )
 
+        # Track operator authority
+        import time as _time
+
+        robot.last_command_source = "operator"
+        robot.last_command_at = _time.time()
+
         # Update command status to sent
         command_service.update_status(cmd.id, "sent")
 
@@ -104,6 +111,26 @@ async def handle_ws_message(websocket: WebSocket, data: dict[str, Any]) -> None:
         )
 
         logger.info("Command dispatched: %s -> %s (%s)", command_type, robot_id, cmd.id)
+
+    elif msg_type == "autonomy.set_tier":
+        robot_id = payload.get("robotId", "")
+        tier = payload.get("tier", "")
+
+        if tier not in AUTONOMY_TIERS:
+            return
+
+        if robot_id == "__fleet__":
+            entry = autonomy_service.set_fleet_default(tier)
+        else:
+            entry = autonomy_service.set_robot_tier(robot_id, tier)
+
+        if entry:
+            await ws_manager.broadcast({
+                "type": "autonomy.changed",
+                "payload": entry.to_dict(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            logger.info("Autonomy tier changed: %s -> %s", entry.robot_id, entry.new_tier)
 
 
 def create_app() -> FastAPI:

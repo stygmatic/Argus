@@ -3,6 +3,10 @@ import { useRobotStore } from "../../stores/useRobotStore";
 import { useUIStore } from "../../stores/useUIStore";
 import { CommandPalette } from "../command/CommandPalette";
 import { CommandHistory } from "../command/CommandHistory";
+import { AutonomyBadge } from "../autonomy/AutonomyBadge";
+import { AutonomyTierSelector } from "../autonomy/AutonomyTierSelector";
+import { AuthorityIndicator } from "../autonomy/AuthorityIndicator";
+import type { AutonomyTier } from "../../types/robot";
 
 /* ---------- Error Boundary ---------- */
 interface EBProps { children: ReactNode }
@@ -104,6 +108,7 @@ function DetailContent() {
             >
               {robot.status}
             </span>
+            <AutonomyBadge tier={(robot.autonomyTier ?? "assisted") as AutonomyTier} size="sm" />
             <span className="text-[11px] text-zinc-500">{robot.id}</span>
           </div>
         </div>
@@ -117,6 +122,18 @@ function DetailContent() {
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 scrollbar-thin">
+        {/* Autonomy + Authority */}
+        <div className="space-y-2.5">
+          <AutonomyTierSelector
+            robotId={robot.id}
+            currentTier={(robot.autonomyTier ?? "assisted") as AutonomyTier}
+          />
+          <AuthorityIndicator
+            source={robot.lastCommandSource ?? ""}
+            timestamp={robot.lastCommandAt ?? 0}
+          />
+        </div>
+
         {/* Battery */}
         <div>
           <div className="flex justify-between text-[11px] mb-1.5">

@@ -1,7 +1,21 @@
 import React, { useCallback, useRef, useMemo } from "react";
 import { Marker } from "react-map-gl/maplibre";
-import type { RobotState, RobotType } from "../../types/robot";
+import type { RobotState, RobotType, AutonomyTier } from "../../types/robot";
 import { useUIStore } from "../../stores/useUIStore";
+
+const TIER_SHORT: Record<AutonomyTier, string> = {
+  manual: "MAN",
+  assisted: "AST",
+  supervised: "SUP",
+  autonomous: "AUT",
+};
+
+const TIER_COLOR: Record<AutonomyTier, string> = {
+  manual: "#a1a1aa",
+  assisted: "#38bdf8",
+  supervised: "#fbbf24",
+  autonomous: "#34d399",
+};
 
 const STATUS_COLORS: Record<string, string> = {
   active: "#22c55e",
@@ -80,6 +94,10 @@ export function RobotMarker({ robot }: RobotMarkerProps) {
     [robot.id]
   );
 
+  const tier = (robot.autonomyTier ?? "assisted") as AutonomyTier;
+  const tierLabel = TIER_SHORT[tier];
+  const tierColor = TIER_COLOR[tier];
+
   return (
     <Marker
       longitude={robot.position.longitude}
@@ -96,6 +114,12 @@ export function RobotMarker({ robot }: RobotMarkerProps) {
           style={{ transform: `rotate(${cumulativeRotation.current}deg)` }}
           dangerouslySetInnerHTML={{ __html: svgHtml }}
         />
+        <div
+          className="text-[8px] font-bold tracking-wider text-center mt-0.5 select-none"
+          style={{ color: tierColor, textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}
+        >
+          {tierLabel}
+        </div>
       </div>
     </Marker>
   );

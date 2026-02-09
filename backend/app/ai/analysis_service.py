@@ -9,6 +9,7 @@ from typing import Any
 from app.ai.heuristics import Alert, heuristic_analyzer
 from app.ai.suggestions import Suggestion, suggestion_service
 from app.config import settings
+from app.services.autonomy_service import autonomy_service
 from app.services.state_manager import RobotState, state_manager
 from app.ws.manager import ws_manager
 
@@ -180,15 +181,105 @@ class AnalysisService:
     async def _broadcast_suggestion(self, suggestion: Suggestion) -> None:
         from datetime import datetime, timezone
 
-        await ws_manager.broadcast({
-            "type": "ai.suggestion",
-            "payload": suggestion.to_dict(),
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
-        logger.info(
-            "Suggestion [%s] %s: %s (robot=%s)",
-            suggestion.severity, suggestion.source, suggestion.title, suggestion.robot_id,
+        robot = state_manager.robots.get(suggestion.robot_id)
+        tier = robot.autonomy_tier if robot else "assisted"
+
+        # Tier-aware behavior
+        if tier == "manual" and suggestion.proposed_action:
+            # Strip proposed action for manual tier
+            suggestion.proposed_action = None
+
+        should_execute, countdown = autonomy_service.should_auto_execute(
+            suggestion.robot_id, suggestion.proposed_action
         )
+
+        payload = suggestion.to_dict()
+
+        if should_execute and countdown > 0:
+            # Supervised: auto-execute after countdown
+            auto_execute_at = time.time() + countdown
+            payload["autoExecuteAt"] = auto_execute_at
+            await ws_manager.broadcast({
+                "type": "ai.suggestion",
+                "payload": payload,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            await ws_manager.broadcast({
+                "type": "autonomy.countdown",
+                "payload": {
+                    "suggestionId": suggestion.id,
+                    "robotId": suggestion.robot_id,
+                    "commandType": suggestion.proposed_action.get("commandType", "") if suggestion.proposed_action else "",
+                    "autoExecuteAt": auto_execute_at,
+                },
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+            asyncio.create_task(self._auto_execute_after_delay(suggestion.id, countdown))
+        elif should_execute and countdown == 0:
+            # Autonomous: execute immediately
+            await self._auto_execute(suggestion)
+            payload = suggestion.to_dict()
+            await ws_manager.broadcast({
+                "type": "ai.suggestion",
+                "payload": payload,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+        else:
+            # Manual/Assisted or supervised high-risk: broadcast as-is
+            await ws_manager.broadcast({
+                "type": "ai.suggestion",
+                "payload": payload,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            })
+
+        logger.info(
+            "Suggestion [%s] %s: %s (robot=%s, tier=%s)",
+            suggestion.severity, suggestion.source, suggestion.title, suggestion.robot_id, tier,
+        )
+
+    async def _auto_execute_after_delay(self, suggestion_id: str, delay: float) -> None:
+        """Wait for countdown, then auto-execute if still pending."""
+        await asyncio.sleep(delay)
+        suggestion = suggestion_service.suggestions.get(suggestion_id)
+        if suggestion and suggestion.status == "pending":
+            await self._auto_execute(suggestion)
+
+    async def _auto_execute(self, suggestion: Suggestion) -> None:
+        """Execute a suggestion's proposed action as AI command."""
+        from app.mqtt.client import mqtt_client
+        from app.services.command_service import command_service
+
+        if not suggestion.proposed_action:
+            return
+
+        robot_id = suggestion.proposed_action.get("robotId", suggestion.robot_id)
+        command_type = suggestion.proposed_action.get("commandType", "")
+        parameters = suggestion.proposed_action.get("parameters", {})
+        robot = state_manager.robots.get(robot_id)
+
+        if not robot or not command_type:
+            return
+
+        suggestion.status = "approved"
+        robot.last_command_source = "ai"
+        robot.last_command_at = time.time()
+
+        cmd = command_service.create_command(
+            robot_id=robot_id,
+            command_type=command_type,
+            parameters=parameters,
+            source="ai",
+        )
+        await mqtt_client.publish(
+            f"argus/{robot_id}/command/execute",
+            {
+                "command_id": cmd.id,
+                "command_type": command_type,
+                "parameters": parameters,
+            },
+        )
+        command_service.update_status(cmd.id, "sent")
+        logger.info("Auto-executed suggestion %s: %s -> %s", suggestion.id, command_type, robot_id)
 
 
 analysis_service = AnalysisService()

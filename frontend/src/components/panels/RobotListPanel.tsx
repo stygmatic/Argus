@@ -1,6 +1,7 @@
 import { useRobotStore } from "../../stores/useRobotStore";
 import { useUIStore } from "../../stores/useUIStore";
-import type { RobotState, RobotType } from "../../types/robot";
+import type { RobotState, RobotType, AutonomyTier } from "../../types/robot";
+import { AutonomyBadge } from "../autonomy/AutonomyBadge";
 
 const STATUS_DOT: Record<string, string> = {
   active: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]",
@@ -53,7 +54,10 @@ function RobotRow({ robot }: { robot: RobotState }) {
           <span className="text-[13px]">{TYPE_ICON[robot.robotType] || "\u2022"}</span>
           <span className="text-[13px] font-medium text-zinc-200 truncate">{robot.name}</span>
         </div>
-        <div className="text-[11px] text-zinc-500">{TYPE_LABELS[robot.robotType] || robot.robotType}</div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] text-zinc-500">{TYPE_LABELS[robot.robotType] || robot.robotType}</span>
+          <AutonomyBadge tier={(robot.autonomyTier ?? "assisted") as AutonomyTier} />
+        </div>
       </div>
 
       {/* Battery */}

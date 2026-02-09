@@ -44,7 +44,13 @@ async def approve_suggestion(suggestion_id: str) -> dict[str, Any]:
         command_type = suggestion.proposed_action.get("commandType", "")
         parameters = suggestion.proposed_action.get("parameters", {})
 
-        if robot_id and command_type and state_manager.robots.get(robot_id):
+        robot = state_manager.robots.get(robot_id) if robot_id else None
+        if robot_id and command_type and robot:
+            import time
+
+            robot.last_command_source = "ai"
+            robot.last_command_at = time.time()
+
             cmd = command_service.create_command(
                 robot_id=robot_id,
                 command_type=command_type,
