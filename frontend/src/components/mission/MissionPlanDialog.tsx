@@ -57,27 +57,27 @@ export function MissionPlanDialog({ open, onClose }: MissionPlanDialogProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-[500px] max-h-[80vh] overflow-y-auto p-6 space-y-5 shadow-2xl shadow-black/50">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-[500px] max-h-[80vh] overflow-y-auto p-6 space-y-5 shadow-2xl shadow-black/50">
         <div className="flex justify-between items-center">
-          <h2 className="text-sm font-semibold text-zinc-100">AI Mission Planning</h2>
-          <button onClick={onClose} className="text-zinc-500 hover:text-zinc-300 text-lg transition-colors">&times;</button>
+          <h2 className="text-sm font-semibold text-slate-100">AI Mission Planning</h2>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg transition-colors">&times;</button>
         </div>
 
         {/* Objective */}
         <div>
-          <label className="text-[11px] text-zinc-400 block mb-1.5 font-medium">Objective</label>
+          <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">Objective</label>
           <textarea
             value={objective}
             onChange={(e) => setObjective(e.target.value)}
             placeholder="Describe the mission objective..."
-            className="w-full bg-zinc-800/60 border border-zinc-700/40 rounded-xl p-3 text-[13px] text-zinc-200 placeholder:text-zinc-600 resize-none focus:border-sky-500/40 focus:outline-none transition-colors"
+            className="w-full bg-slate-800/60 border border-slate-700/40 rounded-xl p-3 text-[13px] text-slate-200 placeholder:text-slate-600 resize-none focus:border-sky-500/40 focus:outline-none transition-colors"
             rows={3}
           />
         </div>
 
         {/* Robot selection */}
         <div>
-          <label className="text-[11px] text-zinc-400 block mb-1.5 font-medium">
+          <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">
             Robots ({selectedRobots.length || "all"} selected)
           </label>
           <div className="flex flex-wrap gap-2">
@@ -88,7 +88,7 @@ export function MissionPlanDialog({ open, onClose }: MissionPlanDialogProps) {
                 className={`text-[13px] px-3 py-1.5 rounded-xl border transition-colors ${
                   selectedRobots.includes(r.id)
                     ? "border-sky-500/40 bg-sky-500/15 text-sky-300"
-                    : "border-zinc-700/40 text-zinc-400 hover:border-zinc-600"
+                    : "border-slate-700/40 text-slate-400 hover:border-slate-600"
                 }`}
               >
                 {r.name}
@@ -99,25 +99,25 @@ export function MissionPlanDialog({ open, onClose }: MissionPlanDialogProps) {
 
         {/* Constraints */}
         <div>
-          <label className="text-[11px] text-zinc-400 block mb-1.5 font-medium">Constraints</label>
+          <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">Constraints</label>
           <div className="flex gap-2">
             <input
               value={constraintInput}
               onChange={(e) => setConstraintInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addConstraint()}
               placeholder="Add constraint..."
-              className="flex-1 bg-zinc-800/60 border border-zinc-700/40 rounded-xl px-3 py-1.5 text-[13px] text-zinc-200 placeholder:text-zinc-600 focus:border-sky-500/40 focus:outline-none transition-colors"
+              className="flex-1 bg-slate-800/60 border border-slate-700/40 rounded-xl px-3 py-1.5 text-[13px] text-slate-200 placeholder:text-slate-600 focus:border-sky-500/40 focus:outline-none transition-colors"
             />
-            <button onClick={addConstraint} className="text-[13px] px-3 py-1.5 bg-zinc-700/60 rounded-xl text-zinc-300 hover:bg-zinc-600/60 transition-colors">
+            <button onClick={addConstraint} className="text-[13px] px-3 py-1.5 bg-slate-700/60 rounded-xl text-slate-300 hover:bg-slate-600/60 transition-colors">
               Add
             </button>
           </div>
           {constraints.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {constraints.map((c, i) => (
-                <span key={i} className="text-[11px] bg-zinc-700/40 text-zinc-300 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                <span key={i} className="text-[11px] bg-slate-700/40 text-slate-300 px-2.5 py-1 rounded-full flex items-center gap-1.5">
                   {c}
-                  <button onClick={() => setConstraints((cs) => cs.filter((_, j) => j !== i))} className="text-zinc-500 hover:text-zinc-300 transition-colors">&times;</button>
+                  <button onClick={() => setConstraints((cs) => cs.filter((_, j) => j !== i))} className="text-slate-500 hover:text-slate-300 transition-colors">&times;</button>
                 </span>
               ))}
             </div>
@@ -126,25 +126,25 @@ export function MissionPlanDialog({ open, onClose }: MissionPlanDialogProps) {
 
         {/* Rules of Engagement */}
         <div>
-          <label className="text-[11px] text-zinc-400 block mb-1.5 font-medium">Rules of Engagement</label>
+          <label className="text-[11px] text-slate-400 block mb-1.5 font-medium">Rules of Engagement</label>
           <div className="flex gap-2">
             <input
               value={roeInput}
               onChange={(e) => setRoeInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addRoe()}
               placeholder="Add ROE..."
-              className="flex-1 bg-zinc-800/60 border border-zinc-700/40 rounded-xl px-3 py-1.5 text-[13px] text-zinc-200 placeholder:text-zinc-600 focus:border-sky-500/40 focus:outline-none transition-colors"
+              className="flex-1 bg-slate-800/60 border border-slate-700/40 rounded-xl px-3 py-1.5 text-[13px] text-slate-200 placeholder:text-slate-600 focus:border-sky-500/40 focus:outline-none transition-colors"
             />
-            <button onClick={addRoe} className="text-[13px] px-3 py-1.5 bg-zinc-700/60 rounded-xl text-zinc-300 hover:bg-zinc-600/60 transition-colors">
+            <button onClick={addRoe} className="text-[13px] px-3 py-1.5 bg-slate-700/60 rounded-xl text-slate-300 hover:bg-slate-600/60 transition-colors">
               Add
             </button>
           </div>
           {roe.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {roe.map((r, i) => (
-                <span key={i} className="text-[11px] bg-zinc-700/40 text-zinc-300 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                <span key={i} className="text-[11px] bg-slate-700/40 text-slate-300 px-2.5 py-1 rounded-full flex items-center gap-1.5">
                   {r}
-                  <button onClick={() => setRoe((rs) => rs.filter((_, j) => j !== i))} className="text-zinc-500 hover:text-zinc-300 transition-colors">&times;</button>
+                  <button onClick={() => setRoe((rs) => rs.filter((_, j) => j !== i))} className="text-slate-500 hover:text-slate-300 transition-colors">&times;</button>
                 </span>
               ))}
             </div>
@@ -152,8 +152,8 @@ export function MissionPlanDialog({ open, onClose }: MissionPlanDialogProps) {
         </div>
 
         {/* Actions */}
-        <div className="flex justify-end gap-2 pt-3 border-t border-zinc-700/40">
-          <button onClick={onClose} className="text-[13px] px-4 py-2 rounded-xl bg-zinc-700/60 text-zinc-300 hover:bg-zinc-600/60 transition-colors">
+        <div className="flex justify-end gap-2 pt-3 border-t border-slate-700/40">
+          <button onClick={onClose} className="text-[13px] px-4 py-2 rounded-xl bg-slate-700/60 text-slate-300 hover:bg-slate-600/60 transition-colors">
             Cancel
           </button>
           <button

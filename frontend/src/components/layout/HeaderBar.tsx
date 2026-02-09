@@ -1,4 +1,4 @@
-import { useConnectionStore } from "../../stores/useConnectionStore";
+import { Radio, AlertCircle, Bell, Settings } from "lucide-react";
 import { useRobotStore } from "../../stores/useRobotStore";
 import { useAIStore } from "../../stores/useAIStore";
 import { useUIStore } from "../../stores/useUIStore";
@@ -6,8 +6,6 @@ import { useAutonomyStore } from "../../stores/useAutonomyStore";
 import { AutonomyBadge } from "../autonomy/AutonomyBadge";
 
 export function HeaderBar() {
-  const connected = useConnectionStore((s) => s.connected);
-  const reconnecting = useConnectionStore((s) => s.reconnecting);
   const robots = useRobotStore((s) => s.robots);
   const pendingSuggestions = useAIStore((s) =>
     Object.values(s.suggestions).filter((sg) => sg.status === "pending").length
@@ -20,91 +18,68 @@ export function HeaderBar() {
 
   const robotList = Object.values(robots);
   const activeCount = robotList.filter((r) => r.status === "active").length;
-  const errorCount = robotList.filter((r) => r.status === "error").length;
-  const offlineCount = robotList.filter((r) => r.status === "offline").length;
   const totalCount = robotList.length;
 
   return (
-    <div className="fixed top-0 left-0 right-0 h-14 z-20 flex items-center px-5 bg-zinc-900 border-b border-zinc-800">
-      {/* Left: connection + wordmark */}
-      <div className="flex items-center gap-3">
-        <div
-          className={`w-2 h-2 rounded-full flex-shrink-0 ${
-            connected
-              ? "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]"
-              : reconnecting
-                ? "bg-amber-500 animate-pulse"
-                : "bg-rose-500"
-          }`}
-        />
-        <span className="text-[11px] text-zinc-500">
-          {connected ? "Connected" : reconnecting ? "Reconnecting..." : "Offline"}
-        </span>
-        <div className="w-px h-5 bg-zinc-700/60 mx-1" />
-        <span className="text-sm font-bold tracking-wide text-zinc-100">
-          Fleet Command
-        </span>
-      </div>
-
-      <div className="flex-1" />
-
-      {/* Right: status counts + alerts */}
-      <div className="flex items-center gap-4">
-        {/* Live status counts */}
-        <div className="flex items-center gap-3 text-[11px]">
-          <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-            <span className="text-zinc-400">{activeCount} active</span>
-          </span>
-          {errorCount > 0 && (
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
-              <span className="text-zinc-400">{errorCount} error</span>
-            </span>
-          )}
-          {offlineCount > 0 && (
-            <span className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-zinc-600" />
-              <span className="text-zinc-400">{offlineCount} offline</span>
-            </span>
-          )}
-          <span className="text-zinc-600">{totalCount} total</span>
+    <div className="h-16 bg-slate-900 border-b border-slate-800 flex items-center justify-between px-8 shrink-0">
+      {/* Left: active count + total */}
+      <div className="flex items-center gap-6">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-sm">
+            <Radio className="w-4 h-4 text-slate-500" />
+            <span className="font-medium text-slate-300">{activeCount}</span>
+            <span className="text-slate-500">active</span>
+          </div>
+          <div className="w-px h-4 bg-slate-700" />
+          <div className="text-sm">
+            <span className="font-medium text-slate-300">{totalCount}</span>
+            <span className="text-slate-500"> total units</span>
+          </div>
         </div>
 
-        <div className="w-px h-5 bg-zinc-700/60" />
+        <div className="w-px h-4 bg-slate-700" />
 
         {/* Fleet default tier */}
         <div className="flex items-center gap-1.5">
-          <span className="text-[11px] text-zinc-500">Fleet:</span>
+          <span className="text-xs text-slate-500">Fleet:</span>
           <AutonomyBadge tier={fleetDefaultTier} size="md" />
         </div>
+      </div>
 
-        <div className="w-px h-5 bg-zinc-700/60" />
-
-        {/* Alerts button */}
+      {/* Right: alerts, bell, settings */}
+      <div className="flex items-center gap-3">
         <button
           onClick={toggleAlertsPanel}
-          className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-150 ${
+          className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 border ${
             alertsPanelOpen
-              ? "bg-amber-500/25 text-amber-200 border-amber-500/40"
+              ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
               : pendingSuggestions > 0
-                ? "bg-amber-500/15 text-amber-300 border-amber-500/25 hover:bg-amber-500/25"
-                : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+                ? "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
+                : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
           }`}
         >
-          {pendingSuggestions > 0 ? `${pendingSuggestions} Alert${pendingSuggestions > 1 ? "s" : ""}` : "Alerts"}
+          <AlertCircle className="w-4 h-4" />
+          {pendingSuggestions > 0
+            ? `${pendingSuggestions} Alert${pendingSuggestions > 1 ? "s" : ""}`
+            : "Alerts"}
         </button>
 
-        {/* Settings button */}
+        <button className="p-2.5 hover:bg-slate-800 rounded-lg transition-colors relative">
+          <Bell className="w-5 h-5 text-slate-400" />
+          {pendingSuggestions > 0 && (
+            <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+          )}
+        </button>
+
         <button
           onClick={toggleSettingsPanel}
-          className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-150 ${
+          className={`p-2.5 rounded-lg transition-colors ${
             settingsPanelOpen
-              ? "bg-zinc-600/25 text-zinc-200 border-zinc-500/40"
-              : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+              ? "bg-slate-700 text-slate-200"
+              : "hover:bg-slate-800 text-slate-400"
           }`}
         >
-          Settings
+          <Settings className="w-5 h-5" />
         </button>
       </div>
     </div>

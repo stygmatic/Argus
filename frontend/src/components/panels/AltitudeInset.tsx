@@ -30,10 +30,10 @@ export function AltitudeInset() {
 
   return (
     <div
-      className="fixed bottom-5 z-20 bg-zinc-900 border border-zinc-700/60 rounded-xl p-3 shadow-2xl transition-all duration-300"
+      className="absolute bottom-5 z-20 bg-slate-900 border border-slate-700/60 rounded-xl p-3 shadow-2xl transition-all duration-300"
       style={{ right: alertsOpen ? 356 : 16 }}
     >
-      <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-1.5">
+      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
         {isDrone ? "Altitude" : isUUV ? "Depth" : "Elevation"}
       </div>
 
@@ -145,7 +145,7 @@ export function AltitudeInset() {
       </svg>
 
       {/* Robot name */}
-      <div className="text-[11px] text-zinc-500 mt-1 text-center truncate">
+      <div className="text-[11px] text-slate-500 mt-1 text-center truncate">
         {robot.name}
       </div>
     </div>

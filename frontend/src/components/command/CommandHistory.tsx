@@ -25,11 +25,11 @@ export function CommandHistory({ robotId }: CommandHistoryProps) {
 
   return (
     <div>
-      <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider mb-2">
+      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
         Recent Commands
       </div>
       {recentCommands.length === 0 ? (
-        <div className="text-[13px] text-zinc-600 py-3 text-center">
+        <div className="text-[13px] text-slate-600 py-3 text-center">
           No recent commands
         </div>
       ) : (
@@ -45,14 +45,14 @@ export function CommandHistory({ robotId }: CommandHistoryProps) {
             return (
               <div
                 key={cmd.id}
-                className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-zinc-800/40"
+                className="flex items-center justify-between py-1.5 px-2.5 rounded-lg bg-slate-800/40"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="text-[13px] text-zinc-300 font-mono truncate">
+                  <div className="text-[13px] text-slate-300 font-mono truncate">
                     {cmd.commandType}
                   </div>
                   {params && (
-                    <div className="text-[11px] text-zinc-600 truncate mt-0.5">
+                    <div className="text-[11px] text-slate-600 truncate mt-0.5">
                       {params}
                     </div>
                   )}

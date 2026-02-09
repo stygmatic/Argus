@@ -17,7 +17,7 @@ export function AuthorityIndicator({ source, timestamp }: AuthorityIndicatorProp
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[11px] text-zinc-500">Last control:</span>
+      <span className="text-[11px] text-slate-500">Last control:</span>
       <span
         className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${
           isAI
@@ -28,7 +28,7 @@ export function AuthorityIndicator({ source, timestamp }: AuthorityIndicatorProp
         {isAI ? "AI" : "Operator"}
       </span>
       {timestamp > 0 && (
-        <span className="text-[11px] text-zinc-600">{timeAgo}</span>
+        <span className="text-[11px] text-slate-600">{timeAgo}</span>
       )}
     </div>
   );

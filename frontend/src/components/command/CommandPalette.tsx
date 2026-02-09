@@ -63,7 +63,7 @@ export function CommandPalette({ robotId, robotType }: CommandPaletteProps) {
 
   return (
     <div className="space-y-2.5">
-      <div className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+      <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
         Commands
       </div>
       <div className="grid grid-cols-2 gap-2">

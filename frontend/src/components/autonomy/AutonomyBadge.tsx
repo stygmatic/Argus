@@ -1,7 +1,7 @@
 import type { AutonomyTier } from "../../types/robot";
 
 const TIER_CONFIG: Record<AutonomyTier, { label: string; bg: string; text: string }> = {
-  manual: { label: "MAN", bg: "bg-zinc-500/15 border-zinc-500/30", text: "text-zinc-400" },
+  manual: { label: "MAN", bg: "bg-slate-500/15 border-slate-500/30", text: "text-slate-400" },
   assisted: { label: "AST", bg: "bg-sky-500/15 border-sky-500/30", text: "text-sky-400" },
   supervised: { label: "SUP", bg: "bg-amber-500/15 border-amber-500/30", text: "text-amber-400" },
   autonomous: { label: "AUT", bg: "bg-emerald-500/15 border-emerald-500/30", text: "text-emerald-400" },

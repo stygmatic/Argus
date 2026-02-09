@@ -34,7 +34,7 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       return (
         <span className={clsx(
           "text-[11px] capitalize",
-          suggestion.status === "approved" ? "text-emerald-400" : "text-zinc-500"
+          suggestion.status === "approved" ? "text-emerald-400" : "text-slate-500"
         )}>
           {suggestion.status}
         </span>
@@ -63,7 +63,7 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       <>
         <button
           onClick={() => reject(suggestion.id)}
-          className="text-[11px] px-2.5 py-1 rounded-lg bg-zinc-700/60 text-zinc-400 hover:bg-zinc-600/60 transition-colors"
+          className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-700/60 text-slate-400 hover:bg-slate-600/60 transition-colors"
         >
           Dismiss
         </button>
@@ -81,21 +81,21 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
 
   return (
     <div className={clsx(
-      "rounded-xl border p-3.5 space-y-2.5 bg-zinc-800/40",
+      "rounded-xl border p-3.5 space-y-2.5 bg-slate-800/40",
       style.border
     )}>
       <div className="flex items-start gap-2.5">
-        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-zinc-700/50 text-zinc-300">
+        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-md bg-slate-700/50 text-slate-300">
           {style.icon}
         </span>
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-medium text-zinc-200 truncate">{suggestion.title}</div>
-          <div className="text-[11px] text-zinc-400 mt-0.5">{suggestion.description}</div>
+          <div className="text-[13px] font-medium text-slate-200 truncate">{suggestion.title}</div>
+          <div className="text-[11px] text-slate-400 mt-0.5">{suggestion.description}</div>
         </div>
         <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
-          <span className="text-[11px] text-zinc-500">{suggestion.source}</span>
+          <span className="text-[11px] text-slate-500">{suggestion.source}</span>
           {suggestion.confidence > 0 && (
-            <span className="text-[11px] text-zinc-500">
+            <span className="text-[11px] text-slate-500">
               {(suggestion.confidence * 100).toFixed(0)}%
             </span>
           )}
@@ -103,7 +103,7 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       </div>
 
       {expanded && (
-        <div className="text-[13px] text-zinc-400 bg-zinc-800/50 rounded-lg p-2.5">
+        <div className="text-[13px] text-slate-400 bg-slate-800/50 rounded-lg p-2.5">
           {suggestion.reasoning}
         </div>
       )}
@@ -111,13 +111,13 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
       <div className="flex items-center gap-2">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="text-[11px] text-zinc-500 hover:text-zinc-300 transition-colors"
+          className="text-[11px] text-slate-500 hover:text-slate-300 transition-colors"
         >
           {expanded ? "Less" : "More"}
         </button>
         <div className="flex-1" />
         {timeLeft !== null && !countdown && (
-          <span className="text-[11px] text-zinc-600">{timeLeft}s</span>
+          <span className="text-[11px] text-slate-600">{timeLeft}s</span>
         )}
         {renderActions()}
       </div>
@@ -153,9 +153,9 @@ function FleetAlertStack({ suggestions }: { suggestions: Suggestion[] }) {
         </div>
       )}
       {lostComms.length > 0 && (
-        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-zinc-500/10 border border-zinc-500/25">
-          <span className="text-zinc-400 text-[11px]">{"\uD83D\uDCE1"}</span>
-          <span className="text-[11px] text-zinc-300">{lostComms.length} lost comms: {lostComms.map((r) => r.name).join(", ")}</span>
+        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-slate-500/10 border border-slate-500/25">
+          <span className="text-slate-400 text-[11px]">{"\uD83D\uDCE1"}</span>
+          <span className="text-[11px] text-slate-300">{lostComms.length} lost comms: {lostComms.map((r) => r.name).join(", ")}</span>
         </div>
       )}
     </div>
@@ -180,18 +180,18 @@ export function AlertsPanel() {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed top-14 right-0 bottom-0 w-[340px] z-30 bg-zinc-900 border-l border-zinc-800 flex flex-col">
+    <div className="absolute top-0 right-0 bottom-0 w-[340px] z-30 bg-slate-900 border-l border-slate-800 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-zinc-700/40">
+      <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-slate-700/40">
         <div>
-          <div className="text-sm font-semibold text-zinc-200">Alerts</div>
-          <div className="text-[11px] text-zinc-500 mt-0.5">
+          <div className="text-sm font-semibold text-slate-200">Alerts</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">
             {pending.length} pending
           </div>
         </div>
         <button
           onClick={toggleAlertsPanel}
-          className="text-zinc-500 hover:text-zinc-300 text-lg leading-none p-1 transition-colors"
+          className="text-slate-500 hover:text-slate-300 text-lg leading-none p-1 transition-colors"
         >
           &times;
         </button>
@@ -205,7 +205,7 @@ export function AlertsPanel() {
       {/* List */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
         {allSuggestions.length === 0 ? (
-          <div className="text-[13px] text-zinc-500 text-center py-10">No alerts</div>
+          <div className="text-[13px] text-slate-500 text-center py-10">No alerts</div>
         ) : (
           allSuggestions.map((s) => (
             <SuggestionCard key={s.id} suggestion={s} />
