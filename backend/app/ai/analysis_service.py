@@ -68,12 +68,13 @@ class AnalysisService:
                 proposed_action=alert.proposed_action,
                 source="heuristic",
             )
-            await self._broadcast_suggestion(suggestion)
+            if suggestion:
+                await self._broadcast_suggestion(suggestion)
 
     async def _proximity_loop(self) -> None:
         """Periodically check proximity between robots."""
         while True:
-            await asyncio.sleep(10)
+            await asyncio.sleep(30)
             try:
                 alerts = heuristic_analyzer.check_proximity(state_manager.robots)
                 for alert in alerts:
@@ -118,7 +119,8 @@ class AnalysisService:
                     proposed_action=alert.proposed_action,
                     source="heuristic",
                 )
-                await self._broadcast_suggestion(suggestion)
+                if suggestion:
+                    await self._broadcast_suggestion(suggestion)
 
     def _system_prompt(self) -> str:
         return (

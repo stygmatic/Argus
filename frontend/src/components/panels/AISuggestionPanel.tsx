@@ -125,6 +125,43 @@ function SuggestionCard({ suggestion }: { suggestion: Suggestion }) {
   );
 }
 
+/* ---------- Fleet Alert Stack ---------- */
+function FleetAlertStack({ suggestions }: { suggestions: Suggestion[] }) {
+  const robots = useRobotStore((s) => s.robots);
+  const robotList = Object.values(robots);
+
+  const lowBattery = robotList.filter((r) => (r.health?.batteryPercent ?? 100) < 25);
+  const lostComms = robotList.filter((r) => r.status === "offline");
+  const criticalAlerts = suggestions.filter((s) => s.status === "pending" && s.severity === "critical");
+
+  if (lowBattery.length === 0 && lostComms.length === 0 && criticalAlerts.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="mx-3 mb-2 space-y-1.5">
+      {criticalAlerts.length > 0 && (
+        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-rose-500/10 border border-rose-500/25">
+          <span className="text-rose-400 text-[11px] font-bold">!!!</span>
+          <span className="text-[11px] text-rose-300">{criticalAlerts.length} critical alert{criticalAlerts.length > 1 ? "s" : ""}</span>
+        </div>
+      )}
+      {lowBattery.length > 0 && (
+        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-amber-500/10 border border-amber-500/25">
+          <span className="text-amber-400 text-[11px]">{"\u26A1"}</span>
+          <span className="text-[11px] text-amber-300">{lowBattery.length} low battery: {lowBattery.map((r) => r.name).join(", ")}</span>
+        </div>
+      )}
+      {lostComms.length > 0 && (
+        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-zinc-500/10 border border-zinc-500/25">
+          <span className="text-zinc-400 text-[11px]">{"\uD83D\uDCE1"}</span>
+          <span className="text-[11px] text-zinc-300">{lostComms.length} lost comms: {lostComms.map((r) => r.name).join(", ")}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function AlertsPanel() {
   const suggestions = useAIStore((s) => s.suggestions);
   const isOpen = useUIStore((s) => s.alertsPanelOpen);
@@ -158,6 +195,11 @@ export function AlertsPanel() {
         >
           &times;
         </button>
+      </div>
+
+      {/* Fleet alert stack */}
+      <div className="pt-3">
+        <FleetAlertStack suggestions={allSuggestions} />
       </div>
 
       {/* List */}

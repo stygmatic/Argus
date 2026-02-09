@@ -28,7 +28,7 @@ class HeuristicAnalyzer:
     def __init__(self) -> None:
         # Cooldowns: (robot_id, alert_type) -> last_triggered_time
         self._cooldowns: dict[tuple[str, str], float] = {}
-        self._cooldown_secs = 60.0  # Don't repeat the same alert within 60s
+        self._cooldown_secs = 300.0  # Don't repeat the same alert within 5 minutes
 
     def _should_fire(self, robot_id: str, alert_type: str) -> bool:
         key = (robot_id, alert_type)
@@ -91,7 +91,7 @@ class HeuristicAnalyzer:
 
         return alerts
 
-    def check_proximity(self, robots: dict[str, RobotState], threshold_m: float = 50.0) -> list[Alert]:
+    def check_proximity(self, robots: dict[str, RobotState], threshold_m: float = 15.0) -> list[Alert]:
         """Check for robots that are dangerously close to each other."""
         import math
 

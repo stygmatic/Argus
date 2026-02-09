@@ -69,8 +69,11 @@ export const useAIStore = create<AIStore>()((set, get) => ({
       } else {
         set({ pendingPlan: data.plan, planLoading: false });
       }
-    } catch (e) {
-      set({ planError: String(e), planLoading: false });
+    } catch {
+      set({
+        planError: "Could not reach the backend. Ensure the server is running and AI_ENABLED=true is set.",
+        planLoading: false,
+      });
     }
   },
 
@@ -86,8 +89,8 @@ export const useAIStore = create<AIStore>()((set, get) => ({
       if (resp.ok) {
         set({ pendingPlan: null });
       }
-    } catch (e) {
-      set({ planError: String(e) });
+    } catch {
+      set({ planError: "Could not reach the backend. Ensure the server is running." });
     }
   },
 

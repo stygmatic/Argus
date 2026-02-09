@@ -43,12 +43,46 @@ class Suggestion:
 
 
 class SuggestionService:
+    MAX_SUGGESTIONS = 50
+
     def __init__(self) -> None:
         self.suggestions: dict[str, Suggestion] = {}
 
     def add(self, suggestion: Suggestion) -> Suggestion:
         self.suggestions[suggestion.id] = suggestion
+        self._cleanup()
         return suggestion
+
+    def _cleanup(self) -> None:
+        """Expire old suggestions and cap total count."""
+        now = time.time()
+        for s in list(self.suggestions.values()):
+            if s.status == "pending" and s.expires_at > 0 and now > s.expires_at:
+                s.status = "expired"
+        # Remove resolved suggestions beyond limit
+        if len(self.suggestions) > self.MAX_SUGGESTIONS:
+            by_time = sorted(self.suggestions.values(), key=lambda s: s.created_at)
+            to_remove = len(self.suggestions) - self.MAX_SUGGESTIONS
+            removed = 0
+            for s in by_time:
+                if removed >= to_remove:
+                    break
+                if s.status in ("expired", "rejected", "approved"):
+                    del self.suggestions[s.id]
+                    removed += 1
+
+    def has_pending_for(self, robot_id: str, title: str) -> bool:
+        """Check if a pending suggestion with same robot+title already exists."""
+        now = time.time()
+        for s in self.suggestions.values():
+            if (
+                s.robot_id == robot_id
+                and s.title == title
+                and s.status == "pending"
+                and (s.expires_at == 0 or now < s.expires_at)
+            ):
+                return True
+        return False
 
     def create(
         self,
@@ -61,7 +95,11 @@ class SuggestionService:
         confidence: float = 0.8,
         source: str = "heuristic",
         ttl_seconds: float = 300,
-    ) -> Suggestion:
+    ) -> Suggestion | None:
+        # Skip if duplicate pending suggestion exists
+        if self.has_pending_for(robot_id, title):
+            return None
+
         now = time.time()
         suggestion = Suggestion(
             id=str(uuid.uuid4())[:8],

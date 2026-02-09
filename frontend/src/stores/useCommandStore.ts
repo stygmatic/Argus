@@ -13,6 +13,11 @@ interface CommandStore {
     commandType: string,
     parameters?: Record<string, unknown>
   ) => void;
+  sendBatchCommand: (
+    robotIds: string[],
+    commandType: string,
+    parameters?: Record<string, unknown>
+  ) => void;
 }
 
 export const useCommandStore = create<CommandStore>()((set, get) => ({
@@ -47,6 +52,15 @@ export const useCommandStore = create<CommandStore>()((set, get) => ({
     const { sendFn } = get();
     if (sendFn) {
       sendFn("command.send", { robotId, commandType, parameters });
+    }
+  },
+
+  sendBatchCommand: (robotIds, commandType, parameters = {}) => {
+    const { sendFn } = get();
+    if (sendFn) {
+      for (const robotId of robotIds) {
+        sendFn("command.send", { robotId, commandType, parameters });
+      }
     }
   },
 }));

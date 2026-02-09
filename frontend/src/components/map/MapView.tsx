@@ -10,6 +10,7 @@ import { useUIStore } from "../../stores/useUIStore";
 import { useCommandStore } from "../../stores/useCommandStore";
 import { useMissionStore } from "../../stores/useMissionStore";
 import { RobotMarker } from "./RobotMarker";
+import { RobotTrailLayer } from "./RobotTrailLayer";
 import { TrajectoryLayer } from "./TrajectoryLayer";
 
 const DEFAULT_CENTER = { longitude: -118.2437, latitude: 34.0522 }; // Los Angeles
@@ -76,7 +77,7 @@ export function MapView() {
   return (
     <div
       className={commandMode === "goto" ? "cursor-crosshair" : undefined}
-      style={{ position: "absolute", inset: 0, willChange: "transform" }}
+      style={{ position: "absolute", inset: 0 }}
     >
       <Map
         ref={mapRef}
@@ -90,6 +91,9 @@ export function MapView() {
         attributionControl={true}
       >
         <NavigationControl position="bottom-right" />
+
+        {/* Real-time robot position trails */}
+        <RobotTrailLayer />
 
         {/* Trajectory layers for active mission */}
         {activeMission &&

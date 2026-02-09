@@ -11,7 +11,13 @@ import type { Mission } from "../types/mission";
 import type { Suggestion } from "../types/ai";
 import type { AutonomyChangeEntry, CountdownSuggestion } from "../types/autonomy";
 
-const WS_URL = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
+function getWsUrl(): string {
+  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}/ws`;
+}
+
+const WS_URL = getWsUrl();
 
 export function useWebSocket() {
   const wsRef = useRef<WebSocket | null>(null);
@@ -84,11 +90,14 @@ export function useWebSocket() {
           const entry = msg.payload as AutonomyChangeEntry;
           const autoStore = useAutonomyStore.getState();
           autoStore.addChangeLogEntry(entry);
-          // Update robot's tier in robot store
           if (entry.robotId === "__fleet__") {
             autoStore.setFleetDefaultTier(entry.newTier);
           } else {
-            updateRobot(entry.robotId, { autonomyTier: entry.newTier } as never);
+            // Merge tier into existing robot state (don't replace)
+            const existing = useRobotStore.getState().robots[entry.robotId];
+            if (existing) {
+              updateRobot(entry.robotId, { ...existing, autonomyTier: entry.newTier });
+            }
           }
           break;
         }

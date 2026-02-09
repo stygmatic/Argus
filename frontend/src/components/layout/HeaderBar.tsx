@@ -14,6 +14,8 @@ export function HeaderBar() {
   );
   const alertsPanelOpen = useUIStore((s) => s.alertsPanelOpen);
   const toggleAlertsPanel = useUIStore((s) => s.toggleAlertsPanel);
+  const settingsPanelOpen = useUIStore((s) => s.settingsPanelOpen);
+  const toggleSettingsPanel = useUIStore((s) => s.toggleSettingsPanel);
   const fleetDefaultTier = useAutonomyStore((s) => s.fleetDefaultTier);
 
   const robotList = Object.values(robots);
@@ -91,6 +93,18 @@ export function HeaderBar() {
           }`}
         >
           {pendingSuggestions > 0 ? `${pendingSuggestions} Alert${pendingSuggestions > 1 ? "s" : ""}` : "Alerts"}
+        </button>
+
+        {/* Settings button */}
+        <button
+          onClick={toggleSettingsPanel}
+          className={`text-[11px] px-2.5 py-1 rounded-full border transition-all duration-150 ${
+            settingsPanelOpen
+              ? "bg-zinc-600/25 text-zinc-200 border-zinc-500/40"
+              : "bg-zinc-800 text-zinc-500 border-zinc-700 hover:text-zinc-300"
+          }`}
+        >
+          Settings
         </button>
       </div>
     </div>

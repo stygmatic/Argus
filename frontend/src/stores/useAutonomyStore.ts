@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import type { AutonomyTier } from "../types/robot";
 import type { AutonomyChangeEntry, CountdownSuggestion } from "../types/autonomy";
+import { useRobotStore } from "./useRobotStore";
 
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
@@ -42,11 +43,24 @@ export const useAutonomyStore = create<AutonomyStore>()((set) => ({
     })),
 
   setRobotTier: async (robotId, tier) => {
-    await fetch(`${API_BASE}/api/autonomy/robots/${robotId}/tier`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tier }),
-    });
+    // Optimistic update
+    const robot = useRobotStore.getState().robots[robotId];
+    if (robot) {
+      useRobotStore.getState().updateRobot(robotId, { ...robot, autonomyTier: tier });
+    }
+    // Persist to backend
+    try {
+      await fetch(`${API_BASE}/api/autonomy/robots/${robotId}/tier`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier }),
+      });
+    } catch {
+      // Revert on failure
+      if (robot) {
+        useRobotStore.getState().updateRobot(robotId, robot);
+      }
+    }
   },
 
   setFleetDefault: async (tier) => {
