@@ -5,6 +5,7 @@ import { HeaderBar } from "./components/layout/HeaderBar";
 import { RobotListPanel } from "./components/panels/RobotListPanel";
 import { DetailPopup } from "./components/panels/DetailDrawer";
 import { AlertsPanel } from "./components/panels/AISuggestionPanel";
+import { AltitudeInset } from "./components/panels/AltitudeInset";
 import { MissionPlanDialog } from "./components/mission/MissionPlanDialog";
 import { MissionPlanReview } from "./components/mission/MissionPlanReview";
 import { useAIStore } from "./stores/useAIStore";
@@ -26,6 +27,7 @@ export default function App() {
       <RobotListPanel onMissionPlan={() => setMissionDialogOpen(true)} />
       <DetailPopup />
       <AlertsPanel />
+      <AltitudeInset />
 
       {/* Modal overlays */}
       <MissionPlanDialog
