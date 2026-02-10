@@ -50,12 +50,12 @@ export function HeaderBar() {
       <div className="flex items-center gap-3">
         <button
           onClick={toggleAlertsPanel}
-          className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 border ${
+          className={`relative px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 border ${
             alertsPanelOpen
-              ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+              ? "bg-amber-500/20 text-amber-300 border-amber-500/30 shadow-lg shadow-amber-500/10"
               : pendingSuggestions > 0
-                ? "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20"
-                : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"
+                ? "bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/15 hover:border-amber-500/30"
+                : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700 hover:border-slate-600"
           }`}
         >
           <AlertCircle className="w-4 h-4" />
@@ -64,22 +64,22 @@ export function HeaderBar() {
             : "Alerts"}
         </button>
 
-        <button className="p-2.5 hover:bg-slate-800 rounded-lg transition-colors relative">
-          <Bell className="w-5 h-5 text-slate-400" />
+        <button className="p-2.5 hover:bg-slate-800 rounded-lg transition-all duration-200 relative group">
+          <Bell className="w-5 h-5 text-slate-400 group-hover:text-slate-300 transition-colors" />
           {pendingSuggestions > 0 && (
-            <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full" />
+            <div className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse" />
           )}
         </button>
 
         <button
           onClick={toggleSettingsPanel}
-          className={`p-2.5 rounded-lg transition-colors ${
+          className={`p-2.5 rounded-lg transition-all duration-200 group ${
             settingsPanelOpen
               ? "bg-slate-700 text-slate-200"
-              : "hover:bg-slate-800 text-slate-400"
+              : "hover:bg-slate-800 text-slate-400 hover:text-slate-300"
           }`}
         >
-          <Settings className="w-5 h-5" />
+          <Settings className="w-5 h-5 transition-transform group-hover:rotate-45 duration-300" />
         </button>
       </div>
     </div>
