@@ -46,6 +46,7 @@ async def execute_command(
     valid_commands = {
         "goto", "stop", "return_home", "patrol", "set_speed",
         "hold_position", "take_off", "land", "dive", "surface", "hold_depth",
+        "set_home", "follow_waypoints", "circle_area",
     }
     if body.command_type not in valid_commands:
         return {"error": f"Invalid command type: {body.command_type}", "status": "failed"}

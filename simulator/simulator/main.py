@@ -51,6 +51,9 @@ class NavigationMixin:
     target_alt: float | None
     navigating: bool
     current_command_id: str | None
+    waypoint_queue: list[tuple[float, float, float | None]]
+    waypoint_command_id: str | None
+    _circling: bool
 
     def set_target(self, lat: float, lon: float, alt: float | None = None, command_id: str | None = None) -> None:
         self.target_lat = lat
@@ -65,6 +68,13 @@ class NavigationMixin:
         self.target_alt = None
         self.navigating = False
         self.current_command_id = None
+
+    def clear_waypoints(self) -> None:
+        self.waypoint_queue = []
+        self.waypoint_command_id = None
+
+    def stop_circling(self) -> None:
+        self._circling = False
 
     def navigate_toward_target(self, dt: float) -> bool:
         """Move toward target. Returns True if target reached."""
@@ -119,9 +129,25 @@ class DroneSim(NavigationMixin):
         self.navigating = False
         self.current_command_id: str | None = None
         self._patrolling = True
+        # Waypoints & circle
+        self.waypoint_queue: list[tuple[float, float, float | None]] = []
+        self.waypoint_command_id: str | None = None
+        self._circling = False
+        self._circle_center_lat = 0.0
+        self._circle_center_lon = 0.0
+        self._circle_radius = 100.0
+        self._circle_angle = 0.0
 
     def tick(self, dt: float) -> None:
-        if self.navigating:
+        if self._circling:
+            angular_speed = self.speed / self._circle_radius
+            self._circle_angle += angular_speed * dt
+            dx = self._circle_radius * math.cos(self._circle_angle)
+            dy = self._circle_radius * math.sin(self._circle_angle)
+            self.lat, self.lon = offset_coords(self._circle_center_lat, self._circle_center_lon, dx, dy)
+            self.heading = (-math.degrees(self._circle_angle)) % 360
+            self.alt = self.config.start_alt + 3 * math.sin(self._circle_angle * 2)
+        elif self.navigating:
             reached = self.navigate_toward_target(dt)
             if reached:
                 self._arrived = True
@@ -149,7 +175,7 @@ class DroneSim(NavigationMixin):
             "longitude": round(self.lon, 7),
             "altitude": round(self.alt, 1),
             "heading": round(self.heading, 1),
-            "speed": round(self.speed if (self.navigating or self._patrolling) else 0.0, 1),
+            "speed": round(self.speed if (self.navigating or self._patrolling or self._circling) else 0.0, 1),
         }
 
     def health_payload(self) -> dict:
@@ -213,9 +239,24 @@ class GroundRobotSim(NavigationMixin):
         self.navigating = False
         self.current_command_id: str | None = None
         self._patrolling = True
+        # Waypoints & circle
+        self.waypoint_queue: list[tuple[float, float, float | None]] = []
+        self.waypoint_command_id: str | None = None
+        self._circling = False
+        self._circle_center_lat = 0.0
+        self._circle_center_lon = 0.0
+        self._circle_radius = 100.0
+        self._circle_angle = 0.0
 
     def tick(self, dt: float) -> None:
-        if self.navigating:
+        if self._circling:
+            angular_speed = self.speed / self._circle_radius
+            self._circle_angle += angular_speed * dt
+            dx = self._circle_radius * math.cos(self._circle_angle)
+            dy = self._circle_radius * math.sin(self._circle_angle)
+            self.lat, self.lon = offset_coords(self._circle_center_lat, self._circle_center_lon, dx, dy)
+            self.heading = (-math.degrees(self._circle_angle)) % 360
+        elif self.navigating:
             reached = self.navigate_toward_target(dt)
             if reached:
                 self._arrived = True
@@ -224,7 +265,6 @@ class GroundRobotSim(NavigationMixin):
             wp_lat, wp_lon = self._route[self._wp_idx]
             dist = haversine_distance(self.lat, self.lon, wp_lat, wp_lon)
             if dist < 5.0:
-                # Reached waypoint, advance to next
                 self._wp_idx = (self._wp_idx + 1) % len(self._route)
                 wp_lat, wp_lon = self._route[self._wp_idx]
                 dist = haversine_distance(self.lat, self.lon, wp_lat, wp_lon)
@@ -251,7 +291,7 @@ class GroundRobotSim(NavigationMixin):
             "longitude": round(self.lon, 7),
             "altitude": 0.0,
             "heading": round(self.heading, 1),
-            "speed": round(self.speed if (self.navigating or self._patrolling) else 0.0, 1),
+            "speed": round(self.speed if (self.navigating or self._patrolling or self._circling) else 0.0, 1),
         }
 
     def health_payload(self) -> dict:
@@ -297,9 +337,26 @@ class UnderwaterRobotSim(NavigationMixin):
         self.navigating = False
         self.current_command_id: str | None = None
         self._patrolling = True
+        # Waypoints & circle
+        self.waypoint_queue: list[tuple[float, float, float | None]] = []
+        self.waypoint_command_id: str | None = None
+        self._circling = False
+        self._circle_center_lat = 0.0
+        self._circle_center_lon = 0.0
+        self._circle_radius = 100.0
+        self._circle_angle = 0.0
 
     def tick(self, dt: float) -> None:
-        if self.navigating:
+        if self._circling:
+            angular_speed = self.speed / self._circle_radius
+            self._circle_angle += angular_speed * dt
+            dx = self._circle_radius * math.cos(self._circle_angle)
+            dy = self._circle_radius * math.sin(self._circle_angle)
+            self.lat, self.lon = offset_coords(self._circle_center_lat, self._circle_center_lon, dx, dy)
+            self.heading = (-math.degrees(self._circle_angle)) % 360
+            self._depth = abs(self.config.start_alt) + 5 * math.sin(self._circle_angle * 0.5)
+            self.alt = -self._depth
+        elif self.navigating:
             reached = self.navigate_toward_target(dt)
             if reached:
                 self._arrived = True
@@ -389,17 +446,23 @@ async def handle_command(robot: Any, payload: dict[str, Any]) -> str | None:
         lon = parameters.get("longitude")
         alt = parameters.get("altitude")
         if lat is not None and lon is not None:
+            robot.stop_circling()
+            robot.clear_waypoints()
             robot.set_target(lat, lon, alt, command_id)
             robot._patrolling = False
             return command_id
 
     elif command_type == "stop":
         robot.clear_target()
+        robot.clear_waypoints()
+        robot.stop_circling()
         robot._patrolling = False
         robot.speed = 0
         return command_id
 
     elif command_type == "return_home":
+        robot.stop_circling()
+        robot.clear_waypoints()
         robot.set_target(
             robot.config.start_lat,
             robot.config.start_lon,
@@ -411,9 +474,54 @@ async def handle_command(robot: Any, payload: dict[str, Any]) -> str | None:
 
     elif command_type == "patrol":
         robot.clear_target()
+        robot.clear_waypoints()
+        robot.stop_circling()
         robot._patrolling = True
         robot.speed = robot.config.max_speed
         return command_id
+
+    elif command_type == "set_home":
+        lat = parameters.get("latitude")
+        lon = parameters.get("longitude")
+        alt = parameters.get("altitude")
+        if lat is not None and lon is not None:
+            robot.config.start_lat = lat
+            robot.config.start_lon = lon
+            if alt is not None:
+                robot.config.start_alt = alt
+            return command_id
+
+    elif command_type == "follow_waypoints":
+        waypoints_list = parameters.get("waypoints", [])
+        if waypoints_list:
+            robot.stop_circling()
+            robot._patrolling = False
+            robot.waypoint_queue = [
+                (wp["latitude"], wp["longitude"], wp.get("altitude"))
+                for wp in waypoints_list
+            ]
+            robot.waypoint_command_id = command_id
+            first = robot.waypoint_queue.pop(0)
+            robot.set_target(first[0], first[1], first[2], command_id)
+            robot.speed = robot.config.max_speed
+            return command_id
+
+    elif command_type == "circle_area":
+        lat = parameters.get("latitude")
+        lon = parameters.get("longitude")
+        radius = parameters.get("radius", 100)
+        if lat is not None and lon is not None:
+            robot.clear_target()
+            robot.clear_waypoints()
+            robot._patrolling = False
+            robot._circling = True
+            robot._circle_center_lat = lat
+            robot._circle_center_lon = lon
+            robot._circle_radius = max(20, radius)
+            robot._circle_angle = 0.0
+            robot.speed = robot.config.max_speed
+            robot.current_command_id = command_id
+            return command_id
 
     elif command_type == "set_speed":
         new_speed = parameters.get("speed", robot.config.max_speed)
@@ -462,13 +570,18 @@ async def run_robot(config: RobotConfig, sim_config: SimConfig) -> None:
             # Check if navigation target reached
             if hasattr(robot, '_arrived') and robot._arrived:
                 robot._arrived = False
-                cmd_id = robot.current_command_id
-                robot.clear_target()
-                if cmd_id:
-                    await client.publish(
-                        f"argus/{config.id}/command/ack",
-                        json.dumps({"command_id": cmd_id, "status": "completed"}),
-                    )
+                # If there are more waypoints, advance to next
+                if robot.waypoint_queue:
+                    next_wp = robot.waypoint_queue.pop(0)
+                    robot.set_target(next_wp[0], next_wp[1], next_wp[2], robot.waypoint_command_id)
+                else:
+                    cmd_id = robot.current_command_id
+                    robot.clear_target()
+                    if cmd_id:
+                        await client.publish(
+                            f"argus/{config.id}/command/ack",
+                            json.dumps({"command_id": cmd_id, "status": "completed"}),
+                        )
 
             robot.tick(sim_config.publish_interval)
             await client.publish(

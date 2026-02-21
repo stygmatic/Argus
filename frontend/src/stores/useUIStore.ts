@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { RobotStatus } from "../types/robot";
 
-type CommandMode = "none" | "goto";
+type CommandMode = "none" | "goto" | "set_home" | "set_waypoints" | "circle_area";
 type SortBy = "name" | "status" | "battery" | "type";
 
 interface UIStore {
@@ -10,6 +10,18 @@ interface UIStore {
   alertsPanelOpen: boolean;
   settingsPanelOpen: boolean;
   trailsEnabled: boolean;
+
+  // Waypoint builder
+  pendingWaypoints: { lat: number; lng: number }[];
+  addWaypoint: (lat: number, lng: number) => void;
+  undoWaypoint: () => void;
+  clearWaypoints: () => void;
+
+  // Circle area builder
+  circleCenter: { lat: number; lng: number } | null;
+  circleRadius: number;
+  setCircleCenter: (center: { lat: number; lng: number } | null) => void;
+  setCircleRadius: (radius: number) => void;
 
   // Multi-select
   selectedRobotIds: string[];
@@ -51,6 +63,20 @@ export const useUIStore = create<UIStore>()((set) => ({
   settingsPanelOpen: false,
   trailsEnabled: true,
 
+  // Waypoint builder
+  pendingWaypoints: [],
+  addWaypoint: (lat, lng) =>
+    set((s) => ({ pendingWaypoints: [...s.pendingWaypoints, { lat, lng }] })),
+  undoWaypoint: () =>
+    set((s) => ({ pendingWaypoints: s.pendingWaypoints.slice(0, -1) })),
+  clearWaypoints: () => set({ pendingWaypoints: [] }),
+
+  // Circle area builder
+  circleCenter: null,
+  circleRadius: 150,
+  setCircleCenter: (center) => set({ circleCenter: center }),
+  setCircleRadius: (radius) => set({ circleRadius: radius }),
+
   // Multi-select
   selectedRobotIds: [],
   toggleRobotSelection: (id) =>
@@ -91,9 +117,16 @@ export const useUIStore = create<UIStore>()((set) => ({
     set({
       selectedRobotId: id,
       commandMode: "none",
+      pendingWaypoints: [],
+      circleCenter: null,
     }),
 
-  setCommandMode: (mode) => set({ commandMode: mode }),
+  setCommandMode: (mode) =>
+    set({
+      commandMode: mode,
+      // Reset interactive state when switching modes
+      ...(mode === "none" ? { pendingWaypoints: [], circleCenter: null } : {}),
+    }),
 
   toggleAlertsPanel: () =>
     set((state) => ({ alertsPanelOpen: !state.alertsPanelOpen })),

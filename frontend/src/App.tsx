@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect, Component, type ReactNode } from "react";
 import Map, { NavigationControl, Marker, Source, Layer, type MapRef, type MapLayerMouseEvent, type LayerProps } from "react-map-gl/maplibre";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Radio, AlertCircle, Bell, Settings, Plane, Search, Filter, ChevronDown, Sparkles, Menu, X, Plus, CheckCircle2, AlertTriangle, Phone } from "lucide-react";
+import { Radio, AlertCircle, Bell, Settings, Plane, Search, Filter, ChevronDown, Sparkles, Menu, X, Plus, CheckCircle2, AlertTriangle, Phone, Home, MapPin, CircleDot, Undo2, Trash2, Send } from "lucide-react";
 import clsx from "clsx";
 
 import { useWebSocket } from "./hooks/useWebSocket";
@@ -218,6 +218,9 @@ interface CommandDef {
 const DRONE_COMMANDS: CommandDef[] = [
   { label: "Go To Location", command: "goto", color: "bg-sky-500/10 text-sky-400", hoverColor: "hover:bg-sky-500/20", borderColor: "border-sky-500/20" },
   { label: "Patrol", command: "patrol", color: "bg-emerald-500/10 text-emerald-400", hoverColor: "hover:bg-emerald-500/20", borderColor: "border-emerald-500/20" },
+  { label: "Waypoints", command: "set_waypoints", color: "bg-indigo-500/10 text-indigo-400", hoverColor: "hover:bg-indigo-500/20", borderColor: "border-indigo-500/20" },
+  { label: "Circle Area", command: "circle_area", color: "bg-pink-500/10 text-pink-400", hoverColor: "hover:bg-pink-500/20", borderColor: "border-pink-500/20" },
+  { label: "Set Home", command: "set_home", color: "bg-amber-500/10 text-amber-400", hoverColor: "hover:bg-amber-500/20", borderColor: "border-amber-500/20" },
   { label: "Hold Position", command: "stop", color: "bg-violet-500/10 text-violet-400", hoverColor: "hover:bg-violet-500/20", borderColor: "border-violet-500/20" },
   { label: "Return Home", command: "return_home", color: "bg-orange-500/10 text-orange-400", hoverColor: "hover:bg-orange-500/20", borderColor: "border-orange-500/20" },
 ];
@@ -225,13 +228,19 @@ const DRONE_COMMANDS: CommandDef[] = [
 const GROUND_COMMANDS: CommandDef[] = [
   { label: "Go To Location", command: "goto", color: "bg-sky-500/10 text-sky-400", hoverColor: "hover:bg-sky-500/20", borderColor: "border-sky-500/20" },
   { label: "Patrol", command: "patrol", color: "bg-emerald-500/10 text-emerald-400", hoverColor: "hover:bg-emerald-500/20", borderColor: "border-emerald-500/20" },
+  { label: "Waypoints", command: "set_waypoints", color: "bg-indigo-500/10 text-indigo-400", hoverColor: "hover:bg-indigo-500/20", borderColor: "border-indigo-500/20" },
+  { label: "Circle Area", command: "circle_area", color: "bg-pink-500/10 text-pink-400", hoverColor: "hover:bg-pink-500/20", borderColor: "border-pink-500/20" },
+  { label: "Set Home", command: "set_home", color: "bg-amber-500/10 text-amber-400", hoverColor: "hover:bg-amber-500/20", borderColor: "border-amber-500/20" },
   { label: "Stop", command: "stop", color: "bg-rose-500/10 text-rose-400", hoverColor: "hover:bg-rose-500/20", borderColor: "border-rose-500/20" },
-  { label: "Return to Base", command: "return_home", color: "bg-amber-500/10 text-amber-400", hoverColor: "hover:bg-amber-500/20", borderColor: "border-amber-500/20" },
+  { label: "Return to Base", command: "return_home", color: "bg-orange-500/10 text-orange-400", hoverColor: "hover:bg-orange-500/20", borderColor: "border-orange-500/20" },
 ];
 
 const UNDERWATER_COMMANDS: CommandDef[] = [
   { label: "Go To Location", command: "goto", color: "bg-sky-500/10 text-sky-400", hoverColor: "hover:bg-sky-500/20", borderColor: "border-sky-500/20" },
   { label: "Patrol", command: "patrol", color: "bg-emerald-500/10 text-emerald-400", hoverColor: "hover:bg-emerald-500/20", borderColor: "border-emerald-500/20" },
+  { label: "Waypoints", command: "set_waypoints", color: "bg-indigo-500/10 text-indigo-400", hoverColor: "hover:bg-indigo-500/20", borderColor: "border-indigo-500/20" },
+  { label: "Circle Area", command: "circle_area", color: "bg-pink-500/10 text-pink-400", hoverColor: "hover:bg-pink-500/20", borderColor: "border-pink-500/20" },
+  { label: "Set Home", command: "set_home", color: "bg-amber-500/10 text-amber-400", hoverColor: "hover:bg-amber-500/20", borderColor: "border-amber-500/20" },
   { label: "Surface", command: "surface", color: "bg-teal-500/10 text-teal-400", hoverColor: "hover:bg-teal-500/20", borderColor: "border-teal-500/20" },
   { label: "Return Home", command: "return_home", color: "bg-orange-500/10 text-orange-400", hoverColor: "hover:bg-orange-500/20", borderColor: "border-orange-500/20" },
 ];
@@ -242,6 +251,8 @@ const COMMANDS_BY_TYPE: Record<RobotType, CommandDef[]> = {
   underwater: UNDERWATER_COMMANDS,
 };
 
+const MAP_MODES = new Set(["goto", "set_home", "set_waypoints", "circle_area"]);
+
 function CommandPalette({ robotId, robotType }: { robotId: string; robotType: RobotType }) {
   const sendCommand = useCommandStore((s) => s.sendCommand);
   const setCommandMode = useUIStore((s) => s.setCommandMode);
@@ -249,13 +260,32 @@ function CommandPalette({ robotId, robotType }: { robotId: string; robotType: Ro
   const commands = COMMANDS_BY_TYPE[robotType] || DRONE_COMMANDS;
 
   const handleCommand = (cmd: CommandDef) => {
-    if (cmd.command === "goto") {
+    if (MAP_MODES.has(cmd.command)) {
       const currentMode = useUIStore.getState().commandMode;
-      setCommandMode(currentMode === "goto" ? "none" : "goto");
+      setCommandMode(currentMode === cmd.command ? "none" : cmd.command as any);
       return;
     }
     console.log(`[Command] ${cmd.label} → robot=${robotId}, type=${cmd.command}`);
     sendCommand(robotId, cmd.command);
+  };
+
+  const modeLabels: Record<string, string> = {
+    goto: "Click Map...",
+    set_home: "Click Map...",
+    set_waypoints: "Adding...",
+    circle_area: "Click Map...",
+  };
+  const modeActiveColors: Record<string, string> = {
+    goto: "bg-sky-500/20 text-sky-300 border-sky-500/40 ring-1 ring-sky-500/20",
+    set_home: "bg-amber-500/20 text-amber-300 border-amber-500/40 ring-1 ring-amber-500/20",
+    set_waypoints: "bg-indigo-500/20 text-indigo-300 border-indigo-500/40 ring-1 ring-indigo-500/20",
+    circle_area: "bg-pink-500/20 text-pink-300 border-pink-500/40 ring-1 ring-pink-500/20",
+  };
+  const modeHints: Record<string, string> = {
+    goto: "Click on the map to set destination",
+    set_home: "Click on the map to set new home position",
+    set_waypoints: "Click on the map to add waypoints, then send",
+    circle_area: "Click on the map to set circle center",
   };
 
   return (
@@ -263,24 +293,24 @@ function CommandPalette({ robotId, robotType }: { robotId: string; robotType: Ro
       <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Commands</div>
       <div className="grid grid-cols-2 gap-2">
         {commands.map((cmd) => {
-          const isGotoActive = cmd.command === "goto" && commandMode === "goto";
+          const isActive = MAP_MODES.has(cmd.command) && commandMode === cmd.command;
           return (
             <button
               key={cmd.command}
               onClick={() => handleCommand(cmd)}
               className={`px-3 py-2 text-[13px] font-medium rounded-xl border transition-colors ${
-                isGotoActive
-                  ? "bg-sky-500/20 text-sky-300 border-sky-500/40 ring-1 ring-sky-500/20"
+                isActive
+                  ? modeActiveColors[cmd.command] ?? ""
                   : `${cmd.color} ${cmd.hoverColor} ${cmd.borderColor}`
               }`}
             >
-              {isGotoActive ? "Click Map..." : cmd.label}
+              {isActive ? modeLabels[cmd.command] ?? cmd.label : cmd.label}
             </button>
           );
         })}
       </div>
-      {commandMode === "goto" && (
-        <div className="text-[13px] text-sky-400/80 animate-pulse">Click on the map to set destination</div>
+      {commandMode !== "none" && modeHints[commandMode] && (
+        <div className="text-[13px] text-sky-400/80 animate-pulse">{modeHints[commandMode]}</div>
       )}
     </div>
   );
@@ -1184,6 +1214,217 @@ function TrajectoryLayer({ waypoints, color }: { waypoints: Waypoint[]; color: s
    MAP VIEW
    ════════════════════════════════════════════════════════════════════════════ */
 
+/* ── Waypoint Overlay (pending waypoints during set_waypoints mode) ── */
+
+function PendingWaypointOverlay() {
+  const pendingWaypoints = useUIStore((s) => s.pendingWaypoints);
+
+  const lineGeoJSON = useMemo(() => {
+    if (pendingWaypoints.length < 2) return null;
+    return {
+      type: "Feature" as const,
+      properties: {},
+      geometry: {
+        type: "LineString" as const,
+        coordinates: pendingWaypoints.map((wp) => [wp.lng, wp.lat]),
+      },
+    };
+  }, [pendingWaypoints]);
+
+  const lineLayer: LayerProps = useMemo(
+    () => ({
+      id: "pending-waypoints-line",
+      type: "line",
+      paint: { "line-color": "#818cf8", "line-width": 2, "line-opacity": 0.7, "line-dasharray": [4, 3] },
+    }),
+    [],
+  );
+
+  if (pendingWaypoints.length === 0) return null;
+
+  return (
+    <>
+      {lineGeoJSON && (
+        <Source id="pending-wp-line-src" type="geojson" data={lineGeoJSON}>
+          <Layer {...lineLayer} />
+        </Source>
+      )}
+      {pendingWaypoints.map((wp, i) => (
+        <Marker key={`pending-wp-${i}`} longitude={wp.lng} latitude={wp.lat} anchor="center">
+          <div className="flex items-center justify-center w-6 h-6 rounded-full bg-indigo-500 border-2 border-white shadow-lg text-white text-[10px] font-bold">
+            {i + 1}
+          </div>
+        </Marker>
+      ))}
+    </>
+  );
+}
+
+/* ── Circle Overlay (during circle_area mode) ── */
+
+function CircleOverlay() {
+  const circleCenter = useUIStore((s) => s.circleCenter);
+  const circleRadius = useUIStore((s) => s.circleRadius);
+
+  const circleGeoJSON = useMemo(() => {
+    if (!circleCenter) return null;
+    const steps = 64;
+    const coords: [number, number][] = [];
+    const earthRadius = 6371000;
+    const lat = (circleCenter.lat * Math.PI) / 180;
+    const lng = (circleCenter.lng * Math.PI) / 180;
+    for (let i = 0; i <= steps; i++) {
+      const angle = (i / steps) * 2 * Math.PI;
+      const dLat = (circleRadius / earthRadius) * Math.cos(angle);
+      const dLng = (circleRadius / earthRadius) * Math.sin(angle) / Math.cos(lat);
+      coords.push([(lng + dLng) * (180 / Math.PI), (lat + dLat) * (180 / Math.PI)]);
+    }
+    return {
+      type: "Feature" as const,
+      properties: {},
+      geometry: { type: "Polygon" as const, coordinates: [coords] },
+    };
+  }, [circleCenter, circleRadius]);
+
+  const fillLayer: LayerProps = useMemo(
+    () => ({
+      id: "circle-area-fill",
+      type: "fill",
+      paint: { "fill-color": "#ec4899", "fill-opacity": 0.1 },
+    }),
+    [],
+  );
+  const strokeLayer: LayerProps = useMemo(
+    () => ({
+      id: "circle-area-stroke",
+      type: "line",
+      paint: { "line-color": "#ec4899", "line-width": 2, "line-opacity": 0.6, "line-dasharray": [4, 3] },
+    }),
+    [],
+  );
+
+  if (!circleGeoJSON) return null;
+
+  return (
+    <>
+      <Source id="circle-area-src" type="geojson" data={circleGeoJSON}>
+        <Layer {...fillLayer} />
+        <Layer {...strokeLayer} />
+      </Source>
+      <Marker longitude={circleCenter!.lng} latitude={circleCenter!.lat} anchor="center">
+        <div className="w-3 h-3 rounded-full bg-pink-500 border-2 border-white shadow-lg" />
+      </Marker>
+    </>
+  );
+}
+
+/* ── Floating Toolbar for Waypoint Mode ── */
+
+function WaypointToolbar() {
+  const commandMode = useUIStore((s) => s.commandMode);
+  const pendingWaypoints = useUIStore((s) => s.pendingWaypoints);
+  const undoWaypoint = useUIStore((s) => s.undoWaypoint);
+  const clearWaypoints = useUIStore((s) => s.clearWaypoints);
+  const setCommandMode = useUIStore((s) => s.setCommandMode);
+  const selectedRobotId = useUIStore((s) => s.selectedRobotId);
+  const sendCommand = useCommandStore((s) => s.sendCommand);
+
+  if (commandMode !== "set_waypoints" || pendingWaypoints.length === 0) return null;
+
+  const handleSend = () => {
+    if (!selectedRobotId || pendingWaypoints.length === 0) return;
+    const waypoints = pendingWaypoints.map((wp) => ({ latitude: wp.lat, longitude: wp.lng }));
+    sendCommand(selectedRobotId, "follow_waypoints", { waypoints });
+    clearWaypoints();
+    setCommandMode("none");
+  };
+
+  return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2.5 bg-slate-900/95 border border-indigo-500/30 rounded-xl shadow-2xl">
+      <MapPin className="w-4 h-4 text-indigo-400" />
+      <span className="text-sm font-medium text-slate-200">{pendingWaypoints.length} waypoint{pendingWaypoints.length !== 1 ? "s" : ""}</span>
+      <div className="w-px h-5 bg-slate-700" />
+      <button onClick={undoWaypoint} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors">
+        <Undo2 className="w-3.5 h-3.5" /> Undo
+      </button>
+      <button onClick={() => { clearWaypoints(); setCommandMode("none"); }} className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors">
+        <Trash2 className="w-3.5 h-3.5" /> Clear
+      </button>
+      <button onClick={handleSend} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-500 rounded-lg transition-colors shadow-lg shadow-indigo-500/20">
+        <Send className="w-3.5 h-3.5" /> Send
+      </button>
+    </div>
+  );
+}
+
+/* ── Floating Toolbar for Circle Mode ── */
+
+function CircleToolbar() {
+  const commandMode = useUIStore((s) => s.commandMode);
+  const circleCenter = useUIStore((s) => s.circleCenter);
+  const circleRadius = useUIStore((s) => s.circleRadius);
+  const setCircleRadius = useUIStore((s) => s.setCircleRadius);
+  const setCircleCenter = useUIStore((s) => s.setCircleCenter);
+  const setCommandMode = useUIStore((s) => s.setCommandMode);
+  const selectedRobotId = useUIStore((s) => s.selectedRobotId);
+  const sendCommand = useCommandStore((s) => s.sendCommand);
+
+  if (commandMode !== "circle_area" || !circleCenter) return null;
+
+  const handleConfirm = () => {
+    if (!selectedRobotId) return;
+    sendCommand(selectedRobotId, "circle_area", {
+      latitude: circleCenter.lat,
+      longitude: circleCenter.lng,
+      radius: circleRadius,
+    });
+    setCircleCenter(null);
+    setCommandMode("none");
+  };
+
+  const handleCancel = () => {
+    setCircleCenter(null);
+    setCommandMode("none");
+  };
+
+  return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2.5 bg-slate-900/95 border border-pink-500/30 rounded-xl shadow-2xl">
+      <CircleDot className="w-4 h-4 text-pink-400" />
+      <span className="text-sm font-medium text-slate-200">Radius</span>
+      <input
+        type="range" min={50} max={500} step={10} value={circleRadius}
+        onChange={(e) => setCircleRadius(Number(e.target.value))}
+        className="w-28 accent-pink-500"
+      />
+      <span className="text-xs font-mono text-slate-400 w-12">{circleRadius}m</span>
+      <div className="w-px h-5 bg-slate-700" />
+      <button onClick={handleCancel} className="px-2.5 py-1.5 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors">
+        Cancel
+      </button>
+      <button onClick={handleConfirm} className="px-3 py-1.5 text-xs font-medium text-white bg-pink-600 hover:bg-pink-500 rounded-lg transition-colors shadow-lg shadow-pink-500/20">
+        Confirm
+      </button>
+    </div>
+  );
+}
+
+/* ── Set Home Hint ── */
+
+function SetHomeHint() {
+  const commandMode = useUIStore((s) => s.commandMode);
+  const setCommandMode = useUIStore((s) => s.setCommandMode);
+  if (commandMode !== "set_home") return null;
+  return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-4 py-2.5 bg-slate-900/95 border border-amber-500/30 rounded-xl shadow-2xl">
+      <Home className="w-4 h-4 text-amber-400" />
+      <span className="text-sm font-medium text-slate-200">Click map to set new home position</span>
+      <button onClick={() => setCommandMode("none")} className="px-2.5 py-1.5 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg border border-slate-700 transition-colors">
+        Cancel
+      </button>
+    </div>
+  );
+}
+
 function MapView() {
   const mapRef = useRef<MapRef>(null);
   const robots = useRobotStore((s) => s.robots);
@@ -1191,6 +1432,8 @@ function MapView() {
   const commandMode = useUIStore((s) => s.commandMode);
   const setCommandMode = useUIStore((s) => s.setCommandMode);
   const sendCommand = useCommandStore((s) => s.sendCommand);
+  const addWaypoint = useUIStore((s) => s.addWaypoint);
+  const setCircleCenter = useUIStore((s) => s.setCircleCenter);
   const missions = useMissionStore((s) => s.missions);
   const activeMission = Object.values(missions).find((m) => m.status === "active");
   const hasFitted = useRef(false);
@@ -1212,15 +1455,36 @@ function MapView() {
   const handleClick = useCallback(
     (e: MapLayerMouseEvent) => {
       const { commandMode: cm, selectedRobotId } = useUIStore.getState();
-      if (cm !== "goto" || !selectedRobotId) return;
-      sendCommand(selectedRobotId, "goto", { latitude: e.lngLat.lat, longitude: e.lngLat.lng });
-      setCommandMode("none");
+      if (!selectedRobotId) return;
+      const lat = e.lngLat.lat;
+      const lng = e.lngLat.lng;
+
+      switch (cm) {
+        case "goto":
+          sendCommand(selectedRobotId, "goto", { latitude: lat, longitude: lng });
+          setCommandMode("none");
+          break;
+        case "set_home":
+          sendCommand(selectedRobotId, "set_home", { latitude: lat, longitude: lng });
+          setCommandMode("none");
+          break;
+        case "set_waypoints":
+          addWaypoint(lat, lng);
+          break;
+        case "circle_area":
+          if (!useUIStore.getState().circleCenter) {
+            setCircleCenter({ lat, lng });
+          }
+          break;
+      }
     },
-    [sendCommand, setCommandMode],
+    [sendCommand, setCommandMode, addWaypoint, setCircleCenter],
   );
 
+  const cursorMode = commandMode !== "none" ? "cursor-crosshair" : undefined;
+
   return (
-    <div className={commandMode === "goto" ? "cursor-crosshair" : undefined} style={{ position: "absolute", inset: 0 }}>
+    <div className={cursorMode} style={{ position: "absolute", inset: 0 }}>
       <Map
         ref={mapRef}
         initialViewState={{ ...DEFAULT_CENTER, zoom: DEFAULT_ZOOM }}
@@ -1231,6 +1495,8 @@ function MapView() {
       >
         <NavigationControl position="bottom-right" />
         <RobotTrailLayer />
+        <PendingWaypointOverlay />
+        <CircleOverlay />
         {activeMission &&
           Object.entries(activeMission.waypoints).map(([robotId, waypoints]) => {
             const robot = robots[robotId];
@@ -1240,6 +1506,9 @@ function MapView() {
           <RobotMarker key={robot.id} robot={robot} />
         ))}
       </Map>
+      <WaypointToolbar />
+      <CircleToolbar />
+      <SetHomeHint />
     </div>
   );
 }
