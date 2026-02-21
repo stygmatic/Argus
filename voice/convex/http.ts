@@ -79,8 +79,15 @@ http.route({
               });
               break;
 
+            case "executeAICommand":
+              result = await ctx.runAction(api.actions.fleetCommands.executeAICommand, {
+                instruction: args.instruction ?? "",
+                callId: args.callId,
+              });
+              break;
+
             default:
-              result = `Unknown command "${functionName}". Available: dispatchDrones, getFleetStatus, recallRobots, stopRobots, createSurveillanceMission.`;
+              result = `Unknown command "${functionName}". Available: dispatchDrones, getFleetStatus, recallRobots, stopRobots, createSurveillanceMission, executeAICommand.`;
           }
         } catch {
           result = "System error — please repeat your command.";

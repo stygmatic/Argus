@@ -4,18 +4,18 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { Radio, AlertCircle, Bell, Settings, Plane, Search, Filter, ChevronDown, Sparkles, Menu, X, Plus, CheckCircle2, AlertTriangle, Phone, Home, MapPin, CircleDot, Undo2, Trash2, Send } from "lucide-react";
 import clsx from "clsx";
 
-import { useWebSocket } from "./hooks/useWebSocket";
-import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
-import { useRobotStore } from "./stores/useRobotStore";
-import { useUIStore } from "./stores/useUIStore";
-import { useConnectionStore } from "./stores/useConnectionStore";
-import { useCommandStore } from "./stores/useCommandStore";
-import { useMissionStore } from "./stores/useMissionStore";
-import { useAIStore } from "./stores/useAIStore";
-import { useAutonomyStore } from "./stores/useAutonomyStore";
-import type { RobotState, RobotStatus, RobotType, AutonomyTier } from "./types/robot";
-import type { Suggestion, MissionIntent } from "./types/ai";
-import type { Waypoint } from "./types/mission";
+import {
+  useWebSocket,
+  useKeyboardShortcuts,
+  useRobotStore,
+  useUIStore,
+  useConnectionStore,
+  useCommandStore,
+  useMissionStore,
+  useAIStore,
+  useAutonomyStore,
+} from "./lib";
+import type { RobotState, RobotStatus, RobotType, AutonomyTier, Suggestion, MissionIntent, Waypoint } from "./lib";
 
 /* ════════════════════════════════════════════════════════════════════════════
    CONSTANTS
@@ -1834,17 +1834,23 @@ function RobotListPanel({ onMissionPlan }: { onMissionPlan?: () => void }) {
    MISSION PLAN DIALOG
    ════════════════════════════════════════════════════════════════════════════ */
 
+type DialogMode = "quick" | "plan";
+
 function MissionPlanDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const robots = useRobotStore((s) => s.robots);
   const generatePlan = useAIStore((s) => s.generatePlan);
   const planLoading = useAIStore((s) => s.planLoading);
+  const executeAI = useAIStore((s) => s.executeAI);
+  const executeLoading = useAIStore((s) => s.executeLoading);
 
+  const [mode, setMode] = useState<DialogMode>("quick");
   const [objective, setObjective] = useState("");
   const [constraintInput, setConstraintInput] = useState("");
   const [constraints, setConstraints] = useState<string[]>([]);
   const [roeInput, setRoeInput] = useState("");
   const [roe, setRoe] = useState<string[]>([]);
   const [selectedRobots, setSelectedRobots] = useState<string[]>([]);
+  const [executionResult, setExecutionResult] = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -1853,10 +1859,23 @@ function MissionPlanDialog({ open, onClose }: { open: boolean; onClose: () => vo
   const addRoe = () => { if (roeInput.trim()) { setRoe((r) => [...r, roeInput.trim()]); setRoeInput(""); } };
   const toggleRobot = (id: string) => { setSelectedRobots((sel) => sel.includes(id) ? sel.filter((r) => r !== id) : [...sel, id]); };
 
-  const handleSubmit = async () => {
+  const handlePlanSubmit = async () => {
     const intent: MissionIntent = { objective, constraints, rulesOfEngagement: roe, preferences: {}, selectedRobots: selectedRobots.length > 0 ? selectedRobots : undefined };
     await generatePlan(intent);
   };
+
+  const handleQuickExecute = async () => {
+    setExecutionResult(null);
+    const result = await executeAI(objective, selectedRobots.length > 0 ? selectedRobots : undefined);
+    if (result.error) {
+      setExecutionResult(`Error: ${result.error}`);
+    } else {
+      setExecutionResult(result.explanation || "Commands dispatched.");
+      setTimeout(() => onClose(), 2500);
+    }
+  };
+
+  const isLoading = mode === "quick" ? executeLoading : planLoading;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
@@ -1870,15 +1889,44 @@ function MissionPlanDialog({ open, onClose }: { open: boolean; onClose: () => vo
               </div>
               Update Mission
             </h2>
-            <p className="text-sm text-slate-400 mt-2 ml-[52px]">Describe what you need and select which units are affected</p>
+            <p className="text-sm text-slate-400 mt-2 ml-[52px]">Describe what you need and AI will handle it</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-800 rounded-lg transition-colors text-slate-400 hover:text-slate-200"><X className="w-5 h-5" /></button>
         </div>
+
+        {/* Mode Toggle */}
+        <div className="px-8 pt-4 flex gap-2">
+          <button
+            onClick={() => setMode("quick")}
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all ${
+              mode === "quick"
+                ? "bg-violet-500/15 border-violet-500/40 text-violet-300"
+                : "border-slate-700 text-slate-400 hover:text-slate-300 hover:border-slate-600"
+            }`}
+          >
+            Quick Execute
+          </button>
+          <button
+            onClick={() => setMode("plan")}
+            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all ${
+              mode === "plan"
+                ? "bg-violet-500/15 border-violet-500/40 text-violet-300"
+                : "border-slate-700 text-slate-400 hover:text-slate-300 hover:border-slate-600"
+            }`}
+          >
+            Plan & Review
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6 scrollbar-thin">
           <div>
-            <label className="block text-sm font-medium text-slate-200 mb-3">Objective <span className="text-rose-400">*</span></label>
-            <textarea value={objective} onChange={(e) => setObjective(e.target.value)} placeholder="Describe the mission objective in detail..."
-              className="w-full px-4 py-3.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all leading-relaxed" rows={4} />
+            <label className="block text-sm font-medium text-slate-200 mb-3">
+              {mode === "quick" ? "Instruction" : "Objective"} <span className="text-rose-400">*</span>
+            </label>
+            <textarea value={objective} onChange={(e) => setObjective(e.target.value)}
+              placeholder={mode === "quick" ? "e.g. Set up a perimeter around Lake Elizabeth..." : "Describe the mission objective in detail..."}
+              className="w-full px-4 py-3.5 bg-slate-800 border border-slate-700 rounded-xl text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all leading-relaxed"
+              rows={mode === "quick" ? 3 : 4} />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-200 mb-3">Robots <span className="text-xs text-slate-500 font-normal">({selectedRobots.length || "all"} selected)</span></label>
@@ -1891,50 +1939,79 @@ function MissionPlanDialog({ open, onClose }: { open: boolean; onClose: () => vo
               ))}
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-3">Constraints</label>
-            <div className="flex gap-2 mb-3">
-              <input value={constraintInput} onChange={(e) => setConstraintInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addConstraint()} placeholder="Add a constraint..."
-                className="flex-1 px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
-              <button onClick={addConstraint} className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"><Plus className="w-4 h-4" />Add</button>
-            </div>
-            {constraints.length > 0 && (
-              <div className="space-y-2">
-                {constraints.map((c, i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg group hover:bg-slate-800 transition-colors">
-                    <span className="flex-1 text-sm text-slate-300">{c}</span>
-                    <button onClick={() => setConstraints((cs) => cs.filter((_, j) => j !== i))} className="p-1.5 hover:bg-slate-700 rounded-md transition-colors text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
+
+          {/* Plan mode extras */}
+          {mode === "plan" && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-slate-200 mb-3">Constraints</label>
+                <div className="flex gap-2 mb-3">
+                  <input value={constraintInput} onChange={(e) => setConstraintInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addConstraint()} placeholder="Add a constraint..."
+                    className="flex-1 px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+                  <button onClick={addConstraint} className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"><Plus className="w-4 h-4" />Add</button>
+                </div>
+                {constraints.length > 0 && (
+                  <div className="space-y-2">
+                    {constraints.map((c, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg group hover:bg-slate-800 transition-colors">
+                        <span className="flex-1 text-sm text-slate-300">{c}</span>
+                        <button onClick={() => setConstraints((cs) => cs.filter((_, j) => j !== i))} className="p-1.5 hover:bg-slate-700 rounded-md transition-colors text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-200 mb-3">Rules of Engagement</label>
-            <div className="flex gap-2 mb-3">
-              <input value={roeInput} onChange={(e) => setRoeInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRoe()} placeholder="Add a rule..."
-                className="flex-1 px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
-              <button onClick={addRoe} className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"><Plus className="w-4 h-4" />Add</button>
-            </div>
-            {roe.length > 0 && (
-              <div className="space-y-2">
-                {roe.map((r, i) => (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg group hover:bg-slate-800 transition-colors">
-                    <span className="flex-1 text-sm text-slate-300">{r}</span>
-                    <button onClick={() => setRoe((rs) => rs.filter((_, j) => j !== i))} className="p-1.5 hover:bg-slate-700 rounded-md transition-colors text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
+              <div>
+                <label className="block text-sm font-medium text-slate-200 mb-3">Rules of Engagement</label>
+                <div className="flex gap-2 mb-3">
+                  <input value={roeInput} onChange={(e) => setRoeInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && addRoe()} placeholder="Add a rule..."
+                    className="flex-1 px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all" />
+                  <button onClick={addRoe} className="px-4 py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg transition-colors flex items-center gap-2 text-sm font-medium"><Plus className="w-4 h-4" />Add</button>
+                </div>
+                {roe.length > 0 && (
+                  <div className="space-y-2">
+                    {roe.map((r, i) => (
+                      <div key={i} className="flex items-center gap-3 px-4 py-3 bg-slate-800/50 border border-slate-700/50 rounded-lg group hover:bg-slate-800 transition-colors">
+                        <span className="flex-1 text-sm text-slate-300">{r}</span>
+                        <button onClick={() => setRoe((rs) => rs.filter((_, j) => j !== i))} className="p-1.5 hover:bg-slate-700 rounded-md transition-colors text-slate-500 hover:text-slate-300 opacity-0 group-hover:opacity-100"><X className="w-3.5 h-3.5" /></button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
+            </>
+          )}
+
+          {/* Execution result toast */}
+          {executionResult && (
+            <div className={`flex items-start gap-3 px-4 py-4 rounded-xl border ${
+              executionResult.startsWith("Error")
+                ? "bg-rose-500/10 border-rose-500/30"
+                : "bg-emerald-500/10 border-emerald-500/30"
+            }`}>
+              {executionResult.startsWith("Error")
+                ? <AlertTriangle className="w-5 h-5 text-rose-400 flex-shrink-0 mt-0.5" />
+                : <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0 mt-0.5" />
+              }
+              <div className="text-sm text-slate-200">{executionResult}</div>
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-end gap-3 px-8 py-6 border-t border-slate-800">
           <button onClick={onClose} className="px-6 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors text-sm font-medium">Cancel</button>
-          <button onClick={handleSubmit} disabled={!objective.trim() || planLoading}
-            className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${objective.trim() && !planLoading ? "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/20" : "bg-slate-700 text-slate-500 cursor-not-allowed"}`}>
-            <Sparkles className={`w-4 h-4 ${planLoading ? "animate-spin" : ""}`} />
-            {planLoading ? "Generating Plan..." : "Generate Plan"}
-          </button>
+          {mode === "quick" ? (
+            <button onClick={handleQuickExecute} disabled={!objective.trim() || isLoading}
+              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${objective.trim() && !isLoading ? "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/20" : "bg-slate-700 text-slate-500 cursor-not-allowed"}`}>
+              <Send className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+              {isLoading ? "Executing..." : "Execute"}
+            </button>
+          ) : (
+            <button onClick={handlePlanSubmit} disabled={!objective.trim() || isLoading}
+              className={`px-6 py-2.5 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${objective.trim() && !isLoading ? "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 text-white shadow-lg shadow-violet-500/20" : "bg-slate-700 text-slate-500 cursor-not-allowed"}`}>
+              <Sparkles className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+              {isLoading ? "Generating Plan..." : "Generate Plan"}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -285,6 +285,31 @@ export const stopRobots = action({
   },
 });
 
+export const executeAICommand = action({
+  args: {
+    instruction: v.string(),
+    callId: v.optional(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    try {
+      const result = (await callBackend("POST", "/api/ai/execute", {
+        objective: args.instruction,
+        source: "voice",
+      })) as { commands?: unknown[]; explanation?: string; error?: string };
+
+      if (result.error) {
+        return `AI could not execute that instruction: ${result.error}`;
+      }
+
+      const cmdCount = result.commands?.length ?? 0;
+      const explanation = result.explanation ?? "Commands dispatched.";
+      return `Copy. ${explanation} ${cmdCount} command${cmdCount !== 1 ? "s" : ""} dispatched.`;
+    } catch {
+      return "Unable to process AI command. Command relay error, please repeat.";
+    }
+  },
+});
+
 export const createSurveillanceMission = action({
   args: {
     location: v.string(),
