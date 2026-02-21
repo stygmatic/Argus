@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Autonomy settings
     default_autonomy_tier: str = "assisted"
 
+    # Voice integration
+    voice_api_key: str = ""
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

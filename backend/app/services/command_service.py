@@ -12,7 +12,7 @@ class Command:
     robot_id: str
     command_type: str  # goto, stop, return_home, patrol, set_speed
     parameters: dict[str, Any] = field(default_factory=dict)
-    source: str = "operator"  # operator | ai
+    source: str = "operator"  # operator | ai | voice
     status: str = "pending"  # pending | sent | acknowledged | completed | failed
     created_at: float = 0.0
     updated_at: float = 0.0

@@ -42,6 +42,11 @@ services:
       CORS_ORIGINS: '["http://localhost"]'
       DATABASE_URL: postgresql://postgres:argus_dev@postgres:5432/argus
       DEBUG: "true"
+      AI_ENABLED: "true"
+      AI_PROVIDER: "openai"
+      AI_MODEL: "gpt-4o"
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-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}
+      VOICE_API_KEY: ${VOICE_API_KEY:-argus-voice-key-2026}
     depends_on:
       mosquitto:
         condition: service_healthy

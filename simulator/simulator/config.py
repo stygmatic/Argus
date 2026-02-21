@@ -28,7 +28,7 @@ class SimConfig:
 
     @classmethod
     def default(cls) -> SimConfig:
-        # Los Angeles area coordinates
+        # Fremont, CA area coordinates
         return cls(
             robots=[
                 # --- Drones ---
@@ -36,8 +36,8 @@ class SimConfig:
                     id="drone-001",
                     name="Scout Alpha",
                     robot_type="drone",
-                    start_lat=34.0522,
-                    start_lon=-118.2437,
+                    start_lat=37.5485,
+                    start_lon=-121.9886,
                     start_alt=50.0,
                     patrol_radius=350,
                     max_speed=8.0,
@@ -46,8 +46,8 @@ class SimConfig:
                     id="drone-002",
                     name="Scout Bravo",
                     robot_type="drone",
-                    start_lat=34.0536,
-                    start_lon=-118.2415,
+                    start_lat=37.5500,
+                    start_lon=-121.9860,
                     start_alt=65.0,
                     patrol_radius=250,
                     max_speed=6.0,
@@ -57,8 +57,8 @@ class SimConfig:
                     id="rover-001",
                     name="Rover One",
                     robot_type="ground",
-                    start_lat=34.0510,
-                    start_lon=-118.2460,
+                    start_lat=37.5470,
+                    start_lon=-121.9910,
                     patrol_radius=200,
                     max_speed=2.0,
                 ),
@@ -66,8 +66,8 @@ class SimConfig:
                     id="rover-002",
                     name="Rover Two",
                     robot_type="ground",
-                    start_lat=34.0530,
-                    start_lon=-118.2470,
+                    start_lat=37.5495,
+                    start_lon=-121.9920,
                     patrol_radius=150,
                     max_speed=1.5,
                 ),
@@ -76,10 +76,10 @@ class SimConfig:
                     id="uuv-001",
                     name="Depth Finder",
                     robot_type="underwater",
-                    start_lat=34.0505,
-                    start_lon=-118.2425,
+                    start_lat=37.5430,
+                    start_lon=-121.9620,
                     start_alt=-15.0,
-                    patrol_radius=180,
+                    patrol_radius=120,
                     max_speed=1.2,
                 ),
             ]

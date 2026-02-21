@@ -160,7 +160,37 @@ class DroneSim(NavigationMixin):
 
 
 class GroundRobotSim(NavigationMixin):
-    """Ground robot: figure-8 patrol on the surface, slower, less battery drain."""
+    """Ground robot: patrols along street waypoints on the surface."""
+
+    # Street waypoints for rover patrol routes in Fremont, CA
+    # Route 1: Fremont Blvd corridor (rover-001)
+    ROUTE_A: list[tuple[float, float]] = [
+        (37.5470, -121.9910),  # Start - Fremont Blvd near Mowry
+        (37.5480, -121.9900),  # North on Fremont Blvd
+        (37.5492, -121.9888),  # Fremont Blvd / Paseo Padre intersection
+        (37.5500, -121.9880),  # Continue north
+        (37.5510, -121.9870),  # Fremont Blvd near Walnut
+        (37.5500, -121.9860),  # Turn east on Walnut Ave
+        (37.5490, -121.9850),  # East along Walnut
+        (37.5480, -121.9865),  # South on Paseo Padre Pkwy
+        (37.5470, -121.9880),  # Continue south
+        (37.5460, -121.9895),  # South toward Mowry Ave
+        (37.5465, -121.9910),  # West on Mowry Ave
+    ]
+    # Route 2: Paseo Padre / residential area (rover-002)
+    ROUTE_B: list[tuple[float, float]] = [
+        (37.5495, -121.9920),  # Start - Paseo Padre north
+        (37.5505, -121.9915),  # North along Paseo Padre
+        (37.5515, -121.9905),  # Continue north
+        (37.5520, -121.9895),  # Curve east
+        (37.5515, -121.9880),  # East on cross street
+        (37.5505, -121.9875),  # South
+        (37.5495, -121.9885),  # South along side street
+        (37.5485, -121.9895),  # Continue south
+        (37.5480, -121.9910),  # West toward Paseo Padre
+        (37.5488, -121.9920),  # North back to start area
+    ]
+    _ROUTES = {"rover-001": ROUTE_A, "rover-002": ROUTE_B}
 
     def __init__(self, config: RobotConfig) -> None:
         self.config = config
@@ -172,8 +202,10 @@ class GroundRobotSim(NavigationMixin):
         self.battery = 100.0
         self.signal = 90.0
         self.status = "idle"
-        self._angle = random.uniform(0, 2 * math.pi)
         self._wheel_speed = 0.0
+        # Street waypoint patrol
+        self._route = self._ROUTES.get(config.id, self.ROUTE_A)
+        self._wp_idx = 0
         # Navigation
         self.target_lat: float | None = None
         self.target_lon: float | None = None
@@ -188,19 +220,21 @@ class GroundRobotSim(NavigationMixin):
             if reached:
                 self._arrived = True
         elif self._patrolling:
-            angular_speed = self.speed / self.config.patrol_radius
-            self._angle += angular_speed * dt
-            r = self.config.patrol_radius * math.cos(2 * self._angle)
-            r = abs(r)
-            dx = r * math.cos(self._angle)
-            dy = r * math.sin(self._angle)
-            new_lat, new_lon = offset_coords(self.config.start_lat, self.config.start_lon, dx, dy)
-            dlat = new_lat - self.lat
-            dlon = new_lon - self.lon
-            if abs(dlat) > 1e-10 or abs(dlon) > 1e-10:
-                self.heading = math.degrees(math.atan2(dlon, dlat)) % 360
-            self.lat = new_lat
-            self.lon = new_lon
+            # Follow street waypoints
+            wp_lat, wp_lon = self._route[self._wp_idx]
+            dist = haversine_distance(self.lat, self.lon, wp_lat, wp_lon)
+            if dist < 5.0:
+                # Reached waypoint, advance to next
+                self._wp_idx = (self._wp_idx + 1) % len(self._route)
+                wp_lat, wp_lon = self._route[self._wp_idx]
+                dist = haversine_distance(self.lat, self.lon, wp_lat, wp_lon)
+
+            brng = bearing_between(self.lat, self.lon, wp_lat, wp_lon)
+            self.heading = brng
+            step = min(self.speed * dt, dist)
+            dx = step * math.sin(math.radians(brng))
+            dy = step * math.cos(math.radians(brng))
+            self.lat, self.lon = offset_coords(self.lat, self.lon, dx, dy)
 
         self._wheel_speed = self.speed + random.uniform(-0.2, 0.2)
         if self.battery > 20:
@@ -229,7 +263,19 @@ class GroundRobotSim(NavigationMixin):
 
 
 class UnderwaterRobotSim(NavigationMixin):
-    """Underwater robot: elliptical patrol at depth, slowest, worst signal."""
+    """Underwater robot: patrols within Quarry Lakes water body at depth."""
+
+    # Waypoints tracing the perimeter of Quarry Lakes, Fremont CA
+    LAKE_WAYPOINTS: list[tuple[float, float]] = [
+        (37.5440, -121.9635),  # North shore
+        (37.5445, -121.9615),  # Northeast
+        (37.5438, -121.9598),  # East shore
+        (37.5425, -121.9595),  # Southeast
+        (37.5415, -121.9605),  # South shore
+        (37.5412, -121.9620),  # Southwest
+        (37.5418, -121.9638),  # West shore
+        (37.5428, -121.9642),  # Northwest
+    ]
 
     def __init__(self, config: RobotConfig) -> None:
         self.config = config
@@ -241,9 +287,9 @@ class UnderwaterRobotSim(NavigationMixin):
         self.battery = 100.0
         self.signal = 60.0
         self.status = "idle"
-        self._angle = random.uniform(0, 2 * math.pi)
         self._depth = abs(config.start_alt)
         self._pressure = 0.0
+        self._wp_idx = 0
         # Navigation
         self.target_lat: float | None = None
         self.target_lon: float | None = None
@@ -258,18 +304,23 @@ class UnderwaterRobotSim(NavigationMixin):
             if reached:
                 self._arrived = True
         elif self._patrolling:
-            angular_speed = self.speed / self.config.patrol_radius
-            self._angle += angular_speed * dt
-            dx = self.config.patrol_radius * 1.5 * math.cos(self._angle)
-            dy = self.config.patrol_radius * math.sin(self._angle)
-            new_lat, new_lon = offset_coords(self.config.start_lat, self.config.start_lon, dx, dy)
-            dlat = new_lat - self.lat
-            dlon = new_lon - self.lon
-            if abs(dlat) > 1e-10 or abs(dlon) > 1e-10:
-                self.heading = math.degrees(math.atan2(dlon, dlat)) % 360
-            self.lat = new_lat
-            self.lon = new_lon
-            self._depth = abs(self.config.start_alt) + 5 * math.sin(self._angle * 0.5)
+            # Follow lake waypoints
+            wp_lat, wp_lon = self.LAKE_WAYPOINTS[self._wp_idx]
+            dist = haversine_distance(self.lat, self.lon, wp_lat, wp_lon)
+            if dist < 5.0:
+                self._wp_idx = (self._wp_idx + 1) % len(self.LAKE_WAYPOINTS)
+                wp_lat, wp_lon = self.LAKE_WAYPOINTS[self._wp_idx]
+                dist = haversine_distance(self.lat, self.lon, wp_lat, wp_lon)
+
+            brng = bearing_between(self.lat, self.lon, wp_lat, wp_lon)
+            self.heading = brng
+            step = min(self.speed * dt, dist)
+            dx = step * math.sin(math.radians(brng))
+            dy = step * math.cos(math.radians(brng))
+            self.lat, self.lon = offset_coords(self.lat, self.lon, dx, dy)
+
+            # Undulate depth
+            self._depth = abs(self.config.start_alt) + 5 * math.sin(self._wp_idx * 0.8)
             self.alt = -self._depth
 
         self._pressure = abs(self.alt) * 0.1
