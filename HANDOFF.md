@@ -172,7 +172,7 @@ make prod
 
 ### Environment Variables
 
-All secrets are read from `.env` at the repo root (gitignored). See `.env.example` for the full list:
+All secrets are read from `.env` at the repo root (gitignored). The Makefile passes `--env-file .env` explicitly to Docker Compose. See `.env.example` for the full list:
 
 | Variable | Required | Description |
 |----------|----------|-------------|
