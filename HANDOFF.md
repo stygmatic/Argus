@@ -51,7 +51,7 @@ Frontend ←→ WebSocket ←→ FastAPI Backend ←→ MQTT ←→ Simulator
 - **Dual-mode Update Mission dialog:** "Quick Execute" (type instruction, AI dispatches immediately) or "Plan & Review" (generate plan, review assignments, approve to deploy)
 - **Plan approval dispatches commands:** `approve_mission_plan` now sends `follow_waypoints` to each assigned robot
 - AI command execution prompt with full command schema in `backend/app/ai/prompts/command_execution.py`
-- Frontend `executeAI` action in `useAIStore.ts` with loading state and explanation display
+- Frontend `executeAI` action in `lib.ts` with loading state and explanation display
 
 **Autonomy System (Phase 5):**
 - Autonomy tier system (Manual/Assisted/Supervised/Autonomous) per robot and fleet-wide default
@@ -63,7 +63,6 @@ Frontend ←→ WebSocket ←→ FastAPI Backend ←→ MQTT ←→ Simulator
 - Vapi phone number: **+1 (573) 266-6725**
 - Convex bridge with 6 voice commands: `dispatchDrones`, `getFleetStatus`, `recallRobots`, `stopRobots`, `createSurveillanceMission`, **`executeAICommand`**
 - **`executeAICommand`**: catch-all for complex voice instructions → routes through `POST /api/ai/execute` → GPT-4o determines commands → dispatches automatically
-- Example voice flow: "Set up a perimeter around Lake Elizabeth" → Vapi transcribes → `executeAICommand` tool call → Convex action → FastAPI → GPT-4o → circle_area/follow_waypoints commands → robots move
 
 **Simulator (Phase 7 - Complete):**
 - 8 command types: goto, stop, return_home, patrol, set_speed, set_home, follow_waypoints, circle_area
@@ -71,10 +70,27 @@ Frontend ←→ WebSocket ←→ FastAPI Backend ←→ MQTT ←→ Simulator
 - Circle orbit logic (continuous until stopped) for all 3 robot types
 - Commands properly clear conflicting state (stop clears circle, goto clears waypoints, etc.)
 
+**Production Hardening (Complete):**
+- Secrets removed from docker-compose.yml — all read from `.env` via `${VAR}` syntax
+- `OPENAI_API_KEY` is **required** (`${OPENAI_API_KEY:?}` — compose refuses to start without it)
+- CORS origins configurable via `CORS_ORIGINS` env var
+- `DEBUG=false` by default in production compose; `true` only in dev override
+- MQTT auth: entrypoint script auto-generates password file when `MQTT_USER`/`MQTT_PASSWORD` are set; falls back to anonymous in dev mode
+- Backend and simulator MQTT clients support username/password credentials
+- Backend healthcheck: `GET /api/health` (liveness) + `GET /api/health/ready` (readiness — checks DB + MQTT)
+- Docker healthchecks on all services (mosquitto, postgres, backend); frontend depends on backend healthy
+- Resource limits on all containers (memory + CPU caps)
+- Structured JSON logging in production (human-readable in debug mode)
+- Rate limiting middleware: 120 req/min per IP on `/api/*` (disabled in debug mode)
+- Nginx: security headers (`X-Frame-Options`, `X-Content-Type-Options`), gzip, asset caching
+- Production nginx config with HTTPS (TLS 1.2+, HSTS, HTTP→HTTPS redirect)
+- Production compose overlay: `docker-compose.prod.yml`
+- `.env.example` template for all required env vars
+
 ### Build Status
 - `npx tsc --noEmit` — **PASS** (zero errors)
 - `npx vite build` — **PASS** (builds in ~2s)
-- Python syntax — **PASS** (all backend files)
+- Python syntax — **PASS** (all backend + simulator files)
 
 ---
 
@@ -83,67 +99,90 @@ Frontend ←→ WebSocket ←→ FastAPI Backend ←→ MQTT ←→ Simulator
 ### Backend
 | File | Purpose |
 |------|---------|
-| `backend/app/main.py` | FastAPI app, WebSocket handler, WS→MQTT command routing |
-| `backend/app/config.py` | Settings (AI_ENABLED, AI_PROVIDER, OPENAI_API_KEY, VOICE_API_KEY) |
-| `backend/app/api/ai.py` | AI endpoints: suggestions, mission planning, plan approval, **`POST /api/ai/execute`** |
+| `backend/app/main.py` | FastAPI app, WebSocket handler, structured logging, rate limiter |
+| `backend/app/config.py` | Settings (mqtt_user/password, cors_origins, AI, voice) |
+| `backend/app/api/health.py` | `GET /api/health` (liveness) + `GET /api/health/ready` (readiness) |
+| `backend/app/api/ai.py` | AI endpoints: suggestions, mission planning, `POST /api/ai/execute` |
 | `backend/app/api/commands.py` | REST command endpoints (voice/external), fleet status |
-| `backend/app/ai/mission_planner.py` | GPT-4o mission plan generation |
-| `backend/app/ai/prompts/command_execution.py` | **NEW:** AI command execution prompt + JSON schema |
-| `backend/app/ai/prompts/mission_planning.py` | Mission planning prompt + JSON schema |
-| `backend/app/ai/providers/openai.py` | OpenAI provider with structured output |
+| `backend/app/middleware/rate_limit.py` | In-memory rate limiter (120 req/min per IP) |
 | `backend/app/middleware/api_key_auth.py` | API key auth for voice endpoints |
+| `backend/app/ai/prompts/command_execution.py` | AI command execution prompt + JSON schema |
+| `backend/app/mqtt/client.py` | MQTT client with optional username/password auth |
 | `backend/app/services/state_manager.py` | In-memory robot state (source of truth for real-time) |
-| `backend/app/services/command_service.py` | Command lifecycle management |
 
 ### Frontend
 | File | Purpose |
 |------|---------|
 | `frontend/src/App.tsx` | **Single-file UI** (~1950 lines): all components, map, panels, commands, overlays, toolbars |
 | `frontend/src/lib.ts` | **Single merged support file**: all types, Zustand stores (robot, UI, command, AI, autonomy, connection, mission), and hooks (WebSocket, keyboard shortcuts, trail data) |
+| `frontend/nginx.conf` | Dev nginx config (HTTP, security headers, gzip) |
+| `frontend/nginx.prod.conf` | Production nginx config (HTTPS, HSTS, HTTP redirect) |
 
 ### Simulator
 | File | Purpose |
 |------|---------|
-| `simulator/simulator/main.py` | Robot simulation: DroneSim, GroundRobotSim, UnderwaterRobotSim, waypoint queue, circle orbit |
-| `simulator/simulator/config.py` | Robot configs: positions, speeds, patrol radii |
+| `simulator/simulator/main.py` | Robot simulation with MQTT auth support |
+| `simulator/simulator/config.py` | Robot configs + MQTT credentials from env vars |
 
 ### Voice
 | File | Purpose |
 |------|---------|
-| `voice/convex/actions/fleetCommands.ts` | Convex actions: dispatchDrones, getFleetStatus, recallRobots, stopRobots, createSurveillanceMission, **executeAICommand** |
-| `voice/convex/http.ts` | Vapi webhook handler (/vapi/tool-call) with all 6 tool routes |
-| `voice/SETUP.md` | Complete setup guide with all API keys and config |
+| `voice/convex/actions/fleetCommands.ts` | Convex actions (6 tools including `executeAICommand`) |
+| `voice/convex/http.ts` | Vapi webhook handler (/vapi/tool-call) |
 
 ### Infrastructure
 | File | Purpose |
 |------|---------|
-| `docker/docker-compose.yml` | Main compose: mosquitto, postgres, backend, frontend, simulator |
-| `docker/docker-compose.dev.yml` | Dev overrides: hot reload, volumes |
-| `Makefile` | `make dev` / `make up` / `make down` / `make clean` |
+| `docker/docker-compose.yml` | Main compose with healthchecks + resource limits |
+| `docker/docker-compose.dev.yml` | Dev overrides: hot reload, DEBUG=true |
+| `docker/docker-compose.prod.yml` | Production overrides: HTTPS, no simulator |
+| `docker/mosquitto/mosquitto.conf` | Mosquitto config (auth managed by entrypoint) |
+| `docker/mosquitto/entrypoint.sh` | Auto-generates MQTT password file from env vars |
+| `.env.example` | Template for all required environment variables |
+| `Makefile` | `make dev` / `make up` / `make prod` / `make down` / `make clean` |
 
 ---
 
 ## Running the Project
 
-```bash
-# Start everything (dev mode with hot reload)
-make dev
+### Development
 
-# Or manually
-docker compose -f docker/docker-compose.yml -f docker/docker-compose.dev.yml --profile dev up --build
+```bash
+# 1. Copy .env.example to .env and fill in your API keys
+cp .env.example .env
+
+# 2. Start everything (dev mode with hot reload + simulator)
+make dev
 
 # Frontend dev server at http://localhost:3000
 # Backend API at http://localhost:8000
 ```
 
-### Environment Variables (in docker-compose.yml)
+### Production
+
+```bash
+# 1. Create .env with all secrets filled in (see .env.example)
+# 2. Place SSL certs at docker/ssl/fullchain.pem and docker/ssl/privkey.pem
+# 3. Set CORS_ORIGINS to your domain
+
+make prod
+
+# HTTPS on port 443, HTTP redirects to HTTPS
 ```
-AI_ENABLED=true
-AI_PROVIDER=openai
-AI_MODEL=gpt-4o
-OPENAI_API_KEY=sk-proj-RjnBndwFh8oM7lvc8rIw...
-VOICE_API_KEY=argus-voice-key-2026
-```
+
+### Environment Variables
+
+All secrets are read from `.env` at the repo root (gitignored). See `.env.example` for the full list:
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | Yes | OpenAI API key for AI features |
+| `POSTGRES_PASSWORD` | No | Database password (default: `argus_dev`) |
+| `MQTT_USER` / `MQTT_PASSWORD` | No | MQTT credentials (anonymous if unset) |
+| `VOICE_API_KEY` | No | API key for voice endpoint auth |
+| `AI_PROVIDER` | No | `openai` or `anthropic` (default: `openai`) |
+| `AI_MODEL` | No | Model name (default: `gpt-4o`) |
+| `CORS_ORIGINS` | No | JSON array of allowed origins |
 
 ### Voice Pipeline Setup
 1. Backend must be accessible from internet (tunnel needed for local dev)
@@ -176,40 +215,20 @@ VOICE_API_KEY=argus-voice-key-2026
 
 ---
 
-## Frontend Command Modes
+## API Endpoints
 
-| Mode | UI Flow | Map Interaction |
-|------|---------|-----------------|
-| `goto` | Click "Go To Location" → crosshair cursor → click map | Sends `goto` command, resets mode |
-| `set_home` | Click "Set Home" → floating hint bar → click map | Sends `set_home` command, resets mode |
-| `set_waypoints` | Click "Waypoints" → click map multiple times → numbered markers + dashed line appear → floating toolbar (Undo/Clear/Send) | Each click adds waypoint; Send dispatches `follow_waypoints` |
-| `circle_area` | Click "Circle Area" → click map to set center → circle polygon overlay + radius slider toolbar (50-500m) → Confirm | Sends `circle_area` command with center + radius |
+### Health
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/health` | Liveness probe (always 200) |
+| GET | `/api/health/ready` | Readiness probe (checks DB + MQTT) |
 
----
-
-## AI Integration
-
-### Quick Execute Flow
-1. User clicks "Update Mission" → dialog opens in "Quick Execute" mode
-2. Types natural language instruction (e.g. "set up surveillance around Lake Elizabeth")
-3. Clicks "Execute" → `POST /api/ai/execute` called
-4. GPT-4o analyzes fleet state + instruction → generates specific commands
-5. Commands dispatched via MQTT → robots move → result explanation shown
-
-### Plan & Review Flow
-1. User clicks "Update Mission" → switches to "Plan & Review" mode
-2. Fills in objective, selects robots, adds constraints/ROE
-3. Clicks "Generate Plan" → `POST /api/ai/missions/plan` called
-4. GPT-4o generates structured plan with assignments, waypoints, contingencies
-5. User reviews plan → clicks "Approve & Deploy"
-6. `POST /api/ai/missions/plan/approve` creates Mission + dispatches `follow_waypoints` to each robot
-
-### Voice AI Flow
-1. Caller dials +1 (573) 266-6725
-2. Vapi transcribes speech, GPT-4o decides which tool to call
-3. Simple commands → specific tools (dispatchDrones, recallRobots, etc.)
-4. Complex instructions → `executeAICommand` tool → `POST /api/ai/execute` → GPT-4o → dispatched
-5. Response spoken back via ElevenLabs TTS
+### AI
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/ai/execute` | Natural language → AI dispatches commands |
+| POST | `/api/ai/missions/plan` | Generate mission plan from intent |
+| POST | `/api/ai/missions/plan/approve` | Approve plan and dispatch commands |
 
 ---
 
@@ -227,10 +246,12 @@ VOICE_API_KEY=argus-voice-key-2026
 
 ## Remaining / Future Work
 
-1. **Vapi tool registration:** Add `executeAICommand` tool definition (params: `{ instruction: string }`) to the Vapi assistant via their dashboard
-2. **3D visualization:** AltitudeInset component exists, could expand to full 3D view
-3. **Geofencing:** Add no-fly zones / operational boundaries
-4. **Multi-operator:** Add user authentication and role-based access
-5. **Persistent missions:** Currently missions are in-memory; could persist to database
-6. **Video feed overlay:** Camera feeds from drones on the map
-7. **Replay mode:** Play back historical telemetry from TimescaleDB
+1. **Vapi tool registration:** Add `executeAICommand` tool definition to Vapi assistant via their dashboard
+2. **CI/CD pipeline:** GitHub Actions for lint, type-check, build, and deploy
+3. **Test coverage:** Integration tests for backend, E2E tests for frontend
+4. **3D visualization:** AltitudeInset component exists, could expand to full 3D view
+5. **Geofencing:** Add no-fly zones / operational boundaries
+6. **Multi-operator:** Add user authentication and role-based access
+7. **Persistent missions:** Currently missions are in-memory; could persist to database
+8. **Video feed overlay:** Camera feeds from drones on the map
+9. **Replay mode:** Play back historical telemetry from TimescaleDB

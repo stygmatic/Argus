@@ -22,6 +22,8 @@ class RobotConfig:
 class SimConfig:
     mqtt_broker: str = os.environ.get("MQTT_BROKER", "localhost")
     mqtt_port: int = int(os.environ.get("MQTT_PORT", "1883"))
+    mqtt_user: str = os.environ.get("MQTT_USER", "")
+    mqtt_password: str = os.environ.get("MQTT_PASSWORD", "")
     backend_url: str = os.environ.get("BACKEND_URL", "http://localhost:8000")
     publish_interval: float = 0.5
     robots: list[RobotConfig] = field(default_factory=list)

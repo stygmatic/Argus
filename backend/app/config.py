@@ -4,6 +4,8 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     mqtt_broker: str = "localhost"
     mqtt_port: int = 1883
+    mqtt_user: str = ""
+    mqtt_password: str = ""
     cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
     debug: bool = False
     database_url: str = "postgresql://postgres:argus_dev@localhost:5432/argus"

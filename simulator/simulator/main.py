@@ -600,10 +600,14 @@ async def run_robot(config: RobotConfig, sim_config: SimConfig) -> None:
         try:
             # Re-register on each reconnect to handle backend restarts
             await register_robot(config, sim_config.backend_url)
-            async with aiomqtt.Client(
-                hostname=sim_config.mqtt_broker,
-                port=sim_config.mqtt_port,
-            ) as client:
+            mqtt_kwargs: dict[str, object] = {
+                "hostname": sim_config.mqtt_broker,
+                "port": sim_config.mqtt_port,
+            }
+            if sim_config.mqtt_user:
+                mqtt_kwargs["username"] = sim_config.mqtt_user
+                mqtt_kwargs["password"] = sim_config.mqtt_password
+            async with aiomqtt.Client(**mqtt_kwargs) as client:
                 logger.info("Robot %s (%s) connected to MQTT", config.id, config.robot_type)
                 # Run listener and telemetry concurrently
                 async with asyncio.TaskGroup() as tg:

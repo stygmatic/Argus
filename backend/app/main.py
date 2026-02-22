@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json as _json
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -12,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.ai.analysis_service import analysis_service
 from app.api.router import api_router
 from app.config import settings
+from app.middleware.rate_limit import RateLimitMiddleware
 from app.db.connection import db
 from app.db.repositories.command_repo import command_repo
 from app.db.repositories.telemetry_repo import telemetry_repo
@@ -22,10 +24,34 @@ from app.services.command_service import command_service
 from app.services.state_manager import AUTONOMY_TIERS, state_manager
 from app.ws.manager import ws_manager
 
-logging.basicConfig(
-    level=logging.DEBUG if settings.debug else logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-)
+
+class _JSONFormatter(logging.Formatter):
+    """Structured JSON log formatter for production."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        log_entry = {
+            "ts": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "msg": record.getMessage(),
+        }
+        if record.exc_info and record.exc_info[1]:
+            log_entry["exc"] = self.formatException(record.exc_info)
+        return _json.dumps(log_entry)
+
+
+def _setup_logging() -> None:
+    root = logging.getLogger()
+    root.setLevel(logging.DEBUG if settings.debug else logging.INFO)
+    handler = logging.StreamHandler()
+    if settings.debug:
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s"))
+    else:
+        handler.setFormatter(_JSONFormatter())
+    root.addHandler(handler)
+
+
+_setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -143,6 +169,9 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    if not settings.debug:
+        app.add_middleware(RateLimitMiddleware)
 
     app.include_router(api_router)
 

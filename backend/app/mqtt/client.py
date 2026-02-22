@@ -32,10 +32,14 @@ class MQTTClient:
     async def _run(self) -> None:
         while True:
             try:
-                async with aiomqtt.Client(
-                    hostname=settings.mqtt_broker,
-                    port=settings.mqtt_port,
-                ) as client:
+                kwargs: dict[str, Any] = {
+                    "hostname": settings.mqtt_broker,
+                    "port": settings.mqtt_port,
+                }
+                if settings.mqtt_user:
+                    kwargs["username"] = settings.mqtt_user
+                    kwargs["password"] = settings.mqtt_password
+                async with aiomqtt.Client(**kwargs) as client:
                     self._client = client
                     logger.info(
                         "Connected to MQTT broker at %s:%d",
